@@ -41,6 +41,10 @@ public class VaultItem {
     @Builder.Default
     private Boolean favorite = false;
 
+    @Column(name = "revision_number", nullable = false)
+    @Builder.Default
+    private Integer revisionNumber = 1;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

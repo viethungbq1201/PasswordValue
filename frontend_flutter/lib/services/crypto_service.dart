@@ -113,6 +113,14 @@ class CryptoService {
 
   bool get hasKey => _masterKey != null;
 
+  String? get masterKeyBase64 {
+    return _masterKey != null ? base64Encode(_masterKey!) : null;
+  }
+
+  void setMasterKeyBase64(String base64Key) {
+    _masterKey = Uint8List.fromList(base64Decode(base64Key));
+  }
+
   void clearKey() {
     if (_masterKey != null) {
       _masterKey!.fillRange(0, _masterKey!.length, 0);

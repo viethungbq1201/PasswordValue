@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:securevault/services/crypto_service.dart';
 import 'package:securevault/utils/constants.dart';
+import 'package:local_auth/local_auth.dart';
 
 class AuthService extends ChangeNotifier {
   String? _token;
@@ -13,6 +14,7 @@ class AuthService extends ChangeNotifier {
 
   final _storage = const FlutterSecureStorage();
   final _cryptoService = CryptoService();
+  final _localAuth = LocalAuthentication();
 
   bool get isAuthenticated => _token != null;
   bool get isLoading => _isLoading;
@@ -25,9 +27,40 @@ class AuthService extends ChangeNotifier {
     _token = await _storage.read(key: 'jwt_token');
     _userId = await _storage.read(key: 'user_id');
     _email = await _storage.read(key: 'email');
+    final storedKey = await _storage.read(key: 'sv_master_key');
 
-    if (_token != null) {
-      notifyListeners();
+    if (_token != null && storedKey != null) {
+      bool canCheckBiometrics = await _localAuth.canCheckBiometrics;
+      bool isDeviceSupported = await _localAuth.isDeviceSupported();
+
+      bool didAuthenticate = false;
+      if (canCheckBiometrics || isDeviceSupported) {
+        try {
+          didAuthenticate = await _localAuth.authenticate(
+            localizedReason: 'Please authenticate to unlock SecureVault',
+            options: const AuthenticationOptions(
+              stickyAuth: true,
+              biometricOnly: false,
+            ),
+          );
+        } catch (e) {
+          debugPrint('Biometric error: $e');
+        }
+      } else {
+        // Fallback for devices without biometric hardware, allow token login
+        didAuthenticate = true;
+      }
+
+      if (didAuthenticate) {
+        _cryptoService.setMasterKeyBase64(storedKey);
+        notifyListeners();
+      } else {
+        // If they cancel or fail biometrics, logout
+        await logout();
+      }
+    } else {
+        // If partial data, clean up
+        if (_token != null) await logout();
     }
   }
 
@@ -105,6 +138,11 @@ class AuthService extends ChangeNotifier {
 
     // Derive encryption key from master password
     await _cryptoService.deriveKey(masterPassword, email);
+    
+    // Save the derived key securely for biometric auto-login
+    if (_cryptoService.masterKeyBase64 != null) {
+      await _storage.write(key: 'sv_master_key', value: _cryptoService.masterKeyBase64);
+    }
   }
 
   /// Logout and clear all stored data.

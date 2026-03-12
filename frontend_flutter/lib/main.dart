@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:securevault/services/auth_service.dart';
 import 'package:securevault/services/vault_service.dart';
+import 'package:securevault/services/autofill_service.dart';
 import 'package:securevault/utils/theme.dart';
 import 'package:securevault/screens/login_screen.dart';
 import 'package:securevault/screens/vault_dashboard.dart';
@@ -20,6 +21,9 @@ class SecureVaultApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => VaultService()),
+        ProxyProvider<VaultService, AutofillService>(
+          update: (context, vaultService, previous) => previous ?? AutofillService(vaultService),
+        ),
       ],
       child: Consumer<AuthService>(
         builder: (context, auth, _) {

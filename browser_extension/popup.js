@@ -286,3 +286,85 @@ function escapeHtml(str) {
     div.textContent = str || '';
     return div.innerHTML;
 }
+
+// ── Generator ─────────────────────────────────────────────
+const generatorView = document.getElementById('generator-view');
+const showGenBtn = document.getElementById('show-gen-btn');
+const hideGenBtn = document.getElementById('hide-gen-btn');
+const genPasswordInput = document.getElementById('gen-password-input');
+const genLength = document.getElementById('gen-length');
+const genLengthVal = document.getElementById('gen-length-val');
+const genUpper = document.getElementById('gen-upper');
+const genLower = document.getElementById('gen-lower');
+const genNum = document.getElementById('gen-num');
+const genSym = document.getElementById('gen-sym');
+const genRegenBtn = document.getElementById('gen-regen-btn');
+const genCopyBtn = document.getElementById('gen-copy-btn');
+const strText = document.getElementById('gen-strength-text');
+
+showGenBtn.addEventListener('click', () => {
+    vaultView.style.display = 'none';
+    generatorView.style.display = 'block';
+    regeneratePassword();
+});
+
+hideGenBtn.addEventListener('click', () => {
+    generatorView.style.display = 'none';
+    vaultView.style.display = 'block';
+});
+
+[genLength, genUpper, genLower, genNum, genSym].forEach(el => {
+    el.addEventListener('input', () => {
+        if (el === genLength) genLengthVal.textContent = el.value;
+        regeneratePassword();
+    });
+});
+
+genRegenBtn.addEventListener('click', regeneratePassword);
+genCopyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(genPasswordInput.value);
+    showToast('Password copied');
+    hideGenBtn.click();
+});
+
+function regeneratePassword() {
+    const len = parseInt(genLength.value, 10);
+    const up = genUpper.checked;
+    const low = genLower.checked;
+    const num = genNum.checked;
+    const sym = genSym.checked;
+
+    let chars = '';
+    if (up) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (low) chars += 'abcdefghijklmnopqrstuvwxyz';
+    if (num) chars += '0123456789';
+    if (sym) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    if (!chars) chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+    const arr = new Uint32Array(len);
+    crypto.getRandomValues(arr);
+    const pw = Array.from(arr, v => chars[v % chars.length]).join('');
+
+    genPasswordInput.value = pw;
+
+    // Calc strength via zxcvbn
+    let score = 0;
+    if (typeof zxcvbn !== 'undefined') {
+        const result = zxcvbn(pw);
+        score = result.score; // 0 to 4
+    }
+
+    const labels = ['Weak', 'Fair', 'Good', 'Strong', 'Epic'];
+    strText.textContent = labels[score];
+    const color = score < 2 ? '#FF1744' : score < 3 ? '#FFB300' : '#00C853';
+    strText.style.color = color;
+
+    for (let i = 0; i < 4; i++) {
+        const bar = document.getElementById(`str-${i}`);
+        if (score > i) {
+            bar.style.background = color;
+        } else {
+            bar.style.background = 'var(--border)';
+        }
+    }
+}

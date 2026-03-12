@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { vaultApi } from '../services/api'
+import zxcvbn from 'zxcvbn'
 
 const TYPES = ['LOGIN', 'CARD', 'SECURE_NOTE', 'IDENTITY', 'OTP']
 
@@ -118,7 +119,7 @@ export default function VaultItemModal({ item, onClose, onSaved }) {
                             </div>
                             <div>
                                 <label className="block text-sm text-vault-muted mb-1.5">Password</label>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 mb-1.5">
                                     <div className="relative flex-1">
                                         <input
                                             type={showPass ? 'text' : 'password'}
@@ -135,6 +136,24 @@ export default function VaultItemModal({ item, onClose, onSaved }) {
                                         🔐
                                     </button>
                                 </div>
+                                {password && (
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <div className="flex-1 flex gap-1 h-1.5">
+                                            {[...Array(4)].map((_, i) => (
+                                                <div
+                                                    key={i}
+                                                    className={`flex-1 rounded-full transition-colors ${zxcvbn(password).score > i
+                                                            ? (zxcvbn(password).score < 2 ? 'bg-vault-red' : zxcvbn(password).score < 3 ? 'bg-vault-amber' : 'bg-vault-green')
+                                                            : 'bg-vault-border'
+                                                        }`}
+                                                />
+                                            ))}
+                                        </div>
+                                        <span className="text-[10px] uppercase font-bold text-vault-muted w-12 text-right">
+                                            {['Weak', 'Fair', 'Good', 'Strong', 'Epic'][zxcvbn(password).score]}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}

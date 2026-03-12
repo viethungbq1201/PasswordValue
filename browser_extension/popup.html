@@ -35,6 +35,7 @@
             <div class="vault-header">
                 <h2>My Vault</h2>
                 <div class="vault-actions">
+                    <button id="show-gen-btn" class="btn-icon" title="Generator">🔐</button>
                     <button id="sync-btn" class="btn-icon" title="Sync">🔄</button>
                     <button id="logout-btn" class="btn-icon" title="Logout">↗️</button>
                 </div>
@@ -55,12 +56,66 @@
             </div>
         </div>
 
+        <!-- Generator View -->
+        <div id="generator-view" style="display:none;">
+            <div class="vault-header">
+                <h2>Generator</h2>
+                <div class="vault-actions">
+                    <button id="hide-gen-btn" class="btn-icon" title="Back">⬅️</button>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 12px; margin-bottom: 12px;">
+                <input type="text" id="gen-password-input" readonly
+                    style="font-family: monospace; text-align: center; font-size: 16px;">
+            </div>
+
+            <div style="display: flex; gap: 4px; height: 6px; margin-bottom: 4px;" id="gen-strength-bar">
+                <div id="str-0" style="flex: 1; border-radius: 4px; background: var(--border);"></div>
+                <div id="str-1" style="flex: 1; border-radius: 4px; background: var(--border);"></div>
+                <div id="str-2" style="flex: 1; border-radius: 4px; background: var(--border);"></div>
+                <div id="str-3" style="flex: 1; border-radius: 4px; background: var(--border);"></div>
+            </div>
+            <div id="gen-strength-text"
+                style="text-align: right; font-size: 10px; font-weight: bold; color: var(--text-secondary); margin-bottom: 16px;">
+                WEAK</div>
+
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label
+                    style="font-size: 12px; color: var(--text-secondary); display: flex; justify-content: space-between;">
+                    <span>Length</span>
+                    <span id="gen-length-val">20</span>
+                </label>
+                <input type="range" id="gen-length" min="4" max="40" value="20" style="width: 100%;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px;">
+                <label style="font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" id="gen-upper" checked> A-Z
+                </label>
+                <label style="font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" id="gen-lower" checked> a-z
+                </label>
+                <label style="font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" id="gen-num" checked> 0-9
+                </label>
+                <label style="font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" id="gen-sym" checked> !@#$
+                </label>
+            </div>
+
+            <button id="gen-regen-btn" class="btn-primary"
+                style="margin-bottom: 8px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border);">Regenerate</button>
+            <button id="gen-copy-btn" class="btn-primary">Copy Password</button>
+        </div>
+
         <!-- Loading -->
         <div id="loading" style="display:none;">
             <div class="spinner"></div>
         </div>
     </div>
 
+    <script src="lib/zxcvbn.js"></script>
     <script src="popup.js"></script>
 </body>
 

@@ -3,13 +3,14 @@ package com.securevault.api.dto.sync;
 import com.securevault.api.dto.vault.VaultItemRequest;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @Data
 public class SyncRequest {
 
-    private UUID deviceId;
+    private String deviceId;
     private String deviceName;
     private String deviceType;
 
@@ -24,5 +25,7 @@ public class SyncRequest {
         private UUID folderId;
         private Boolean favorite;
         private Boolean deleted;
+        private Integer revisionNumber;
+        private LocalDateTime updatedAt;
     }
 }

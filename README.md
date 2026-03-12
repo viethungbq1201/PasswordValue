@@ -926,6 +926,25 @@ For private use: load as unpacked extension (see section 10, step 4).
 
 ---
 
+## 15. Advanced Features Architecture
+
+### Sync Protocol (Multi-Device)
+SecureVault ensures seamless multi-device capabilities through a robust Sync Engine based on **Delta Synchronization** and **Latest-Wins Conflict Resolution**:
+- **Device Registration (`DeviceSyncState`)**: Tracks when each device last synchronized.
+- **Delta Payloads**: Devices only pull records that were `updatedAt` after their `last_sync_at` timestamp.
+- **Conflict Resolution**: The client uploads its encrypted payloads with a `revisionNumber` and `updatedAt`. If the record already exists and the payload's `updatedAt` is newer, the database safely overwrites it without requiring the server to decrypt the vault.
+
+### Autofill Architecture
+- **Browser Extension**: A DOM-injected Content Script actively inspects form fields for `input[type="password"]` and known username selectors. When a match is found on the current domain, a message is routed to the Service Worker (`background.js`) to trigger a secure UI dropdown that autofills the injected react-driven elements natively.
+- **Mobile Autofill**: Integrated deeply with native Android `AutofillService` and iOS `Password AutoFill Extension`. Flutter platform channels (`MethodChannel('com.securevault/autofill')`) securely pass matching unencrypted credentials to OS-level background workers without retaining plaintext in system memories.
+
+### Biometric Models
+The Flutter app protects the **Master AES-256-GCM Encryption Key** natively with `local_auth`. 
+- When logging in, the derived `masterKeyBase64` is cached securely in `FlutterSecureStorage` under biometric challenge flags.
+- On subsequent app launches, the user fulfills the `local_auth` Face/Touch ID requirement to silently restore the cryptographic session without repeating the Argon2id key derivation sequence.
+
+---
+
 ## License
 
 Private — Personal use only.

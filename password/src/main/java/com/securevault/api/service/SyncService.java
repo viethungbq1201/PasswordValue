@@ -3,13 +3,12 @@ package com.securevault.api.service;
 import com.securevault.api.dto.sync.SyncRequest;
 import com.securevault.api.dto.sync.SyncResponse;
 import com.securevault.api.dto.vault.VaultItemResponse;
-import com.securevault.core.domain.Device;
+import com.securevault.core.domain.DeviceSyncState;
 import com.securevault.core.domain.Folder;
 import com.securevault.core.domain.User;
 import com.securevault.core.domain.VaultItem;
-import com.securevault.core.enums.DeviceType;
 import com.securevault.core.enums.VaultItemType;
-import com.securevault.core.repository.DeviceRepository;
+import com.securevault.core.repository.DeviceSyncStateRepository;
 import com.securevault.core.repository.FolderRepository;
 import com.securevault.core.repository.UserRepository;
 import com.securevault.core.repository.VaultItemRepository;
@@ -24,51 +23,80 @@ import java.util.UUID;
 public class SyncService {
 
     private final VaultItemRepository vaultItemRepository;
-    private final DeviceRepository deviceRepository;
+    private final DeviceSyncStateRepository deviceSyncStateRepository;
     private final UserRepository userRepository;
     private final FolderRepository folderRepository;
 
     public SyncService(VaultItemRepository vaultItemRepository,
-            DeviceRepository deviceRepository,
+            DeviceSyncStateRepository deviceSyncStateRepository,
             UserRepository userRepository,
             FolderRepository folderRepository) {
         this.vaultItemRepository = vaultItemRepository;
-        this.deviceRepository = deviceRepository;
+        this.deviceSyncStateRepository = deviceSyncStateRepository;
         this.userRepository = userRepository;
         this.folderRepository = folderRepository;
     }
 
-    /**
-     * Upload encrypted items from a device. Upserts vault items and updates device
-     * sync timestamp.
-     */
     @Transactional
     public SyncResponse upload(UUID userId, SyncRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // Register or update device
-        Device device = registerOrUpdateDevice(user, request);
+        if (request.getDeviceId() == null || request.getDeviceId().isBlank()) {
+            throw new IllegalArgumentException("Device ID is required");
+        }
 
-        // Upsert each item
+        DeviceSyncState deviceSyncState = deviceSyncStateRepository
+                .findByUserIdAndDeviceId(userId, request.getDeviceId())
+                .orElseGet(() -> DeviceSyncState.builder()
+                        .user(user)
+                        .deviceId(request.getDeviceId())
+                        .deviceName(request.getDeviceName() != null ? request.getDeviceName() : "Unknown")
+                        .deviceType(request.getDeviceType() != null ? request.getDeviceType() : "WEB")
+                        .build());
+
         for (SyncRequest.SyncItemPayload payload : request.getItems()) {
             if (payload.getId() != null) {
-                // Update existing item
                 vaultItemRepository.findById(payload.getId()).ifPresentOrElse(
-                        item -> {
-                            if (!item.getUser().getId().equals(userId))
+                        existingItem -> {
+                            if (!existingItem.getUser().getId().equals(userId))
                                 return;
-                            item.setEncryptedData(payload.getEncryptedData());
-                            item.setType(VaultItemType.valueOf(payload.getType().toUpperCase()));
-                            if (payload.getFavorite() != null)
-                                item.setFavorite(payload.getFavorite());
-                            if (payload.getFolderId() != null) {
-                                item.setFolder(folderRepository.findById(payload.getFolderId()).orElse(null));
+
+                            // Conflict Resolution:
+                            // The client sends the revisionNumber it thinks is current.
+                            // If the payload's updatedAt is newer than the existing item's updatedAt,
+                            // or if it's explicitly resolving a conflict, we update.
+                            boolean shouldUpdate = false;
+
+                            // If client has a higher or equal revision and later updated_at timestamp, we
+                            // apply their changes
+                            if (payload.getUpdatedAt() != null && existingItem.getUpdatedAt() != null) {
+                                if (payload.getUpdatedAt().isAfter(existingItem.getUpdatedAt())) {
+                                    shouldUpdate = true;
+                                }
+                            } else {
+                                // Fallback to basic override if timestamps missing
+                                shouldUpdate = true;
                             }
-                            if (Boolean.TRUE.equals(payload.getDeleted())) {
-                                item.setDeletedAt(LocalDateTime.now());
+
+                            if (shouldUpdate) {
+                                existingItem.setEncryptedData(payload.getEncryptedData());
+                                existingItem.setType(VaultItemType.valueOf(payload.getType().toUpperCase()));
+                                existingItem.setRevisionNumber(
+                                        payload.getRevisionNumber() != null ? payload.getRevisionNumber() + 1
+                                                : existingItem.getRevisionNumber() + 1);
+
+                                if (payload.getFavorite() != null)
+                                    existingItem.setFavorite(payload.getFavorite());
+                                if (payload.getFolderId() != null) {
+                                    existingItem
+                                            .setFolder(folderRepository.findById(payload.getFolderId()).orElse(null));
+                                }
+                                if (Boolean.TRUE.equals(payload.getDeleted())) {
+                                    existingItem.setDeletedAt(LocalDateTime.now());
+                                }
+                                vaultItemRepository.save(existingItem);
                             }
-                            vaultItemRepository.save(item);
                         },
                         () -> createItemFromPayload(user, payload));
             } else {
@@ -76,17 +104,12 @@ public class SyncService {
             }
         }
 
-        // Update device last_sync
-        device.setLastSync(LocalDateTime.now());
-        deviceRepository.save(device);
+        deviceSyncState.setLastSyncAt(LocalDateTime.now());
+        deviceSyncStateRepository.save(deviceSyncState);
 
-        // Return current state
         return buildSyncResponse(userId);
     }
 
-    /**
-     * Download items modified since a given timestamp (delta sync).
-     */
     public SyncResponse downloadDelta(UUID userId, LocalDateTime since) {
         List<VaultItemResponse> items = vaultItemRepository
                 .findByUserIdAndUpdatedAtAfter(userId, since)
@@ -99,38 +122,8 @@ public class SyncService {
                 .build();
     }
 
-    /**
-     * Full vault download — all items including soft-deleted (for new device
-     * setup).
-     */
     public SyncResponse downloadFull(UUID userId) {
         return buildSyncResponse(userId);
-    }
-
-    private Device registerOrUpdateDevice(User user, SyncRequest request) {
-        if (request.getDeviceId() != null) {
-            return deviceRepository.findById(request.getDeviceId())
-                    .orElseGet(() -> createDevice(user, request));
-        }
-        return createDevice(user, request);
-    }
-
-    private Device createDevice(User user, SyncRequest request) {
-        Device device = Device.builder()
-                .user(user)
-                .deviceName(request.getDeviceName() != null ? request.getDeviceName() : "Unknown Device")
-                .deviceType(parseDeviceType(request.getDeviceType()))
-                .lastSync(LocalDateTime.now())
-                .build();
-        return deviceRepository.save(device);
-    }
-
-    private DeviceType parseDeviceType(String type) {
-        try {
-            return type != null ? DeviceType.valueOf(type.toUpperCase()) : DeviceType.WEB;
-        } catch (IllegalArgumentException e) {
-            return DeviceType.WEB;
-        }
     }
 
     private void createItemFromPayload(User user, SyncRequest.SyncItemPayload payload) {
@@ -140,11 +133,13 @@ public class SyncService {
         }
 
         VaultItem item = VaultItem.builder()
+                .id(payload.getId() != null ? payload.getId() : UUID.randomUUID())
                 .user(user)
                 .folder(folder)
                 .type(VaultItemType.valueOf(payload.getType().toUpperCase()))
                 .encryptedData(payload.getEncryptedData())
                 .favorite(payload.getFavorite() != null ? payload.getFavorite() : false)
+                .revisionNumber(payload.getRevisionNumber() != null ? payload.getRevisionNumber() : 1)
                 .build();
 
         if (Boolean.TRUE.equals(payload.getDeleted())) {
@@ -172,6 +167,7 @@ public class SyncService {
                 .encryptedData(item.getEncryptedData())
                 .folderId(item.getFolder() != null ? item.getFolder().getId() : null)
                 .favorite(item.getFavorite())
+                .revisionNumber(item.getRevisionNumber())
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())
                 .deletedAt(item.getDeletedAt())

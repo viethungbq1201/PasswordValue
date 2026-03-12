@@ -18,4 +18,6 @@ public class VaultItemRequest {
     private UUID folderId;
 
     private Boolean favorite;
+
+    private Integer revisionNumber;
 }

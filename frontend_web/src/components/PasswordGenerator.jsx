@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import zxcvbn from 'zxcvbn'
 
 export default function PasswordGenerator({ onCopy }) {
     const [length, setLength] = useState(20)
@@ -31,9 +32,13 @@ export default function PasswordGenerator({ onCopy }) {
         onCopy?.(password)
     }
 
-    const strength = length < 10 ? 'Weak' : length < 16 ? 'Fair' : length < 24 ? 'Strong' : 'Very Strong'
-    const strengthColor = length < 10 ? 'bg-vault-red' : length < 16 ? 'bg-vault-amber' : 'bg-vault-green'
-    const strengthPct = Math.min(100, (length / 40) * 100)
+    const result = zxcvbn(password)
+    const score = result.score // 0 to 4
+    const strengthLabels = ['Weak', 'Fair', 'Good', 'Strong', 'Epic']
+    const strength = strengthLabels[score]
+
+    const strengthColor = score < 2 ? 'bg-vault-red' : score < 3 ? 'bg-vault-amber' : 'bg-vault-green'
+    const strengthPct = Math.max(10, (score + 1) * 20)
 
     return (
         <div className="p-5">
@@ -47,11 +52,16 @@ export default function PasswordGenerator({ onCopy }) {
             </div>
 
             {/* Strength bar */}
-            <div className="flex items-center gap-3 mb-4">
-                <div className="flex-1 h-1.5 bg-vault-border rounded-full overflow-hidden">
-                    <div className={`h-full ${strengthColor} rounded-full transition-all`} style={{ width: `${strengthPct}%` }}></div>
+            <div className="flex flex-col mb-4">
+                <div className="flex items-center gap-3 mb-1">
+                    <div className="flex-1 h-1.5 bg-vault-border rounded-full overflow-hidden">
+                        <div className={`h-full ${strengthColor} rounded-full transition-all`} style={{ width: `${strengthPct}%` }}></div>
+                    </div>
+                    <span className={`text-xs font-semibold ${strengthColor.replace('bg-', 'text-')}`}>{strength}</span>
                 </div>
-                <span className={`text-xs font-semibold ${strengthColor.replace('bg-', 'text-')}`}>{strength}</span>
+                {result.feedback.warning && (
+                    <span className="text-xs text-vault-amber">{result.feedback.warning}</span>
+                )}
             </div>
 
             {/* Controls */}

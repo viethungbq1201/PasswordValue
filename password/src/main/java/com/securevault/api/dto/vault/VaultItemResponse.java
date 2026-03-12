@@ -16,6 +16,7 @@ public class VaultItemResponse {
     private byte[] encryptedData;
     private UUID folderId;
     private Boolean favorite;
+    private Integer revisionNumber;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;
