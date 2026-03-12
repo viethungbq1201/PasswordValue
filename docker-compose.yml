@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: securevault-db
+    environment:
+      POSTGRES_DB: securevault
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./password
+    container_name: securevault-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/securevault
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: SecureVaultProductionJwtSecretKeyMustBeAtLeast256BitsLong!
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
