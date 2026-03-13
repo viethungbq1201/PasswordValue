@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/vault")
+@RequestMapping("/api")
 public class AutofillController {
 
     private final VaultMatchingService vaultMatchingService;
@@ -20,16 +20,17 @@ public class AutofillController {
     }
 
     /**
-     * GET /api/vault/match?domain=github.com
+     * GET /api/autofill?domain=github.com&fullUrl=https://github.com/login
      *
-     * Returns vault items whose website matches the given domain.
+     * Returns vault items matching the domain or fullUrl strategies.
      */
-    @GetMapping("/match")
+    @GetMapping("/autofill")
     public ResponseEntity<List<VaultItemResponse>> matchByDomain(
             Authentication auth,
-            @RequestParam String domain) {
+            @RequestParam String domain,
+            @RequestParam(required = false) String fullUrl) {
         UUID userId = (UUID) auth.getPrincipal();
-        List<VaultItemResponse> matches = vaultMatchingService.findMatchesByDomain(userId, domain);
+        List<VaultItemResponse> matches = vaultMatchingService.findMatchesByDomain(userId, domain, fullUrl);
         return ResponseEntity.ok(matches);
     }
 }

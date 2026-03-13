@@ -2,6 +2,7 @@ package com.securevault.api.service;
 
 import com.securevault.api.dto.vault.VaultItemResponse;
 import com.securevault.core.domain.VaultItem;
+import com.securevault.core.enums.UrlMatchType;
 import com.securevault.core.repository.VaultItemRepository;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +30,7 @@ public class VaultMatchingService {
      * Find vault items whose website column matches the given domain.
      * Uses LIKE query for substring matching, then filters by root domain.
      */
-    public List<VaultItemResponse> findMatchesByDomain(UUID userId, String domain) {
+    public List<VaultItemResponse> findMatchesByDomain(UUID userId, String domain, String fullUrl) {
         String normalizedDomain = normalizeDomain(domain);
         if (normalizedDomain.isEmpty())
             return Collections.emptyList();
@@ -40,14 +41,38 @@ public class VaultMatchingService {
         List<VaultItem> candidates = vaultItemRepository
                 .findByUserIdAndWebsiteContainingDomain(userId, rootDomain);
 
-        // Filter: ensure root domain actually matches
-        return candidates.stream()
-                .filter(item -> {
-                    String storedRoot = extractRootDomain(normalizeDomain(item.getWebsite()));
-                    return rootDomain.equals(storedRoot);
-                })
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        // Filter: ensure root domain actually matches based on match_type
+        List<VaultItemResponse> matchedItems = new ArrayList<>();
+
+        for (VaultItem item : candidates) {
+            if (item.getWebsite() == null || item.getWebsite().isBlank()) continue;
+
+            UrlMatchType matchType = item.getMatchType() != null ? item.getMatchType() : UrlMatchType.DOMAIN;
+            String itemWebsiteUrl = item.getWebsite().trim();
+            String itemDomain = normalizeDomain(itemWebsiteUrl);
+
+            boolean matches = false;
+            switch(matchType) {
+                case EXACT:
+                    matches = fullUrl != null && fullUrl.equals(itemWebsiteUrl);
+                    break;
+                case STARTS_WITH:
+                    matches = fullUrl != null && fullUrl.startsWith(itemWebsiteUrl);
+                    break;
+                case HOST:
+                    matches = normalizedDomain.equals(itemDomain);
+                    break;
+                case DOMAIN:
+                default:
+                    String itemRootDomain = extractRootDomain(itemDomain);
+                    matches = rootDomain.equals(itemRootDomain);
+                    break;
+            }
+            if (matches) {
+                matchedItems.add(toResponse(item));
+            }
+        }
+        return matchedItems;
     }
 
     /**
@@ -112,6 +137,7 @@ public class VaultMatchingService {
                 .favorite(item.getFavorite())
                 .revisionNumber(item.getRevisionNumber())
                 .website(item.getWebsite())
+                .matchType(item.getMatchType() != null ? item.getMatchType().name() : UrlMatchType.DOMAIN.name())
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())
                 .deletedAt(item.getDeletedAt())

@@ -9,6 +9,7 @@ export default function VaultItemModal({ item, onClose, onSaved }) {
     const [type, setType] = useState(item?.type || 'LOGIN')
     const [name, setName] = useState(item?.name || '')
     const [website, setWebsite] = useState(item?.website || '')
+    const [matchType, setMatchType] = useState(item?.matchType || 'DOMAIN')
     const [username, setUsername] = useState(item?.username || '')
     const [password, setPassword] = useState(item?.password || '')
     const [notes, setNotes] = useState(item?.notes || '')
@@ -39,6 +40,7 @@ export default function VaultItemModal({ item, onClose, onSaved }) {
                 favorite,
                 encryptedData: btoa(unescape(encodeURIComponent(rawJson))),
                 website: website || null,
+                matchType: matchType,
             }
 
             if (isEdit) {
@@ -111,7 +113,15 @@ export default function VaultItemModal({ item, onClose, onSaved }) {
                         <>
                             <div>
                                 <label className="block text-sm text-vault-muted mb-1.5">Website / Login URL</label>
-                                <input className="input-field" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://github.com/login" />
+                                <input className="input-field mb-3" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://github.com/login" />
+                                
+                                <label className="block text-sm text-vault-muted mb-1.5">Match Strategy</label>
+                                <select className="input-field appearance-none bg-vault-bg" value={matchType} onChange={e => setMatchType(e.target.value)}>
+                                    <option value="DOMAIN">Base Domain (e.g. any subdomains)</option>
+                                    <option value="HOST">Host (e.g. exact subdomain)</option>
+                                    <option value="STARTS_WITH">Starts With</option>
+                                    <option value="EXACT">Exact Match</option>
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-sm text-vault-muted mb-1.5">Username</label>

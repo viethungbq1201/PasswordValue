@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.util.UUID;
+import com.securevault.core.enums.UrlMatchType;
 
 @Data
 public class VaultItemRequest {
@@ -22,4 +23,6 @@ public class VaultItemRequest {
     private Integer revisionNumber;
 
     private String website;
+
+    private UrlMatchType matchType;
 }

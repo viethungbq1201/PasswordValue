@@ -18,6 +18,7 @@ public class VaultItemResponse {
     private Boolean favorite;
     private Integer revisionNumber;
     private String website;
+    private String matchType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;

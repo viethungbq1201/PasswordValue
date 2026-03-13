@@ -1,0 +1,2 @@
+ALTER TABLE vault_items 
+ADD COLUMN match_type VARCHAR(20) NOT NULL DEFAULT 'DOMAIN';

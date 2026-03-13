@@ -1,5 +1,6 @@
 package com.securevault.core.domain;
 
+import com.securevault.core.enums.UrlMatchType;
 import com.securevault.core.enums.VaultItemType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -39,6 +40,11 @@ public class VaultItem {
 
     @Column(length = 2048)
     private String website;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "match_type")
+    @Builder.Default
+    private UrlMatchType matchType = UrlMatchType.DOMAIN;
 
     @Column(nullable = false)
     @Builder.Default

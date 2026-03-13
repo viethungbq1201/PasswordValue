@@ -75,7 +75,10 @@ async function handleGetCredentials(domain, fullUrl) {
         const cached = getCachedCredentials(domain);
         if (cached) return { matches: cached };
 
-        let url = `${API_BASE}/vault/match?domain=${encodeURIComponent(domain)}`;
+        let url = `${API_BASE}/autofill?domain=${encodeURIComponent(domain)}`;
+        if (fullUrl) {
+            url += `&fullUrl=${encodeURIComponent(fullUrl)}`;
+        }
 
         const res = await fetch(url, {
             headers: { 'Authorization': `Bearer ${sv_token}` }

@@ -5,6 +5,7 @@ import com.securevault.api.dto.vault.VaultItemResponse;
 import com.securevault.core.domain.Folder;
 import com.securevault.core.domain.User;
 import com.securevault.core.domain.VaultItem;
+import com.securevault.core.enums.UrlMatchType;
 import com.securevault.core.enums.VaultItemType;
 import com.securevault.core.repository.FolderRepository;
 import com.securevault.core.repository.UserRepository;
@@ -73,6 +74,7 @@ public class VaultService {
                 .type(VaultItemType.valueOf(request.getType().toUpperCase()))
                 .encryptedData(request.getEncryptedData())
                 .website(request.getWebsite())
+                .matchType(request.getMatchType() != null ? request.getMatchType() : UrlMatchType.DOMAIN)
                 .favorite(request.getFavorite() != null ? request.getFavorite() : false)
                 .build();
 
@@ -104,6 +106,9 @@ public class VaultService {
         }
         if (request.getWebsite() != null) {
             item.setWebsite(request.getWebsite());
+        }
+        if (request.getMatchType() != null) {
+            item.setMatchType(request.getMatchType());
         }
 
         item = vaultItemRepository.save(item);
@@ -158,6 +163,7 @@ public class VaultService {
                 .favorite(item.getFavorite())
                 .revisionNumber(item.getRevisionNumber())
                 .website(item.getWebsite())
+                .matchType(item.getMatchType() != null ? item.getMatchType().name() : UrlMatchType.DOMAIN.name())
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())
                 .deletedAt(item.getDeletedAt())
