@@ -72,6 +72,7 @@ public class VaultService {
                 .folder(folder)
                 .type(VaultItemType.valueOf(request.getType().toUpperCase()))
                 .encryptedData(request.getEncryptedData())
+                .website(request.getWebsite())
                 .favorite(request.getFavorite() != null ? request.getFavorite() : false)
                 .build();
 
@@ -100,6 +101,9 @@ public class VaultService {
         }
         if (request.getFavorite() != null) {
             item.setFavorite(request.getFavorite());
+        }
+        if (request.getWebsite() != null) {
+            item.setWebsite(request.getWebsite());
         }
 
         item = vaultItemRepository.save(item);
@@ -152,6 +156,8 @@ public class VaultService {
                 .encryptedData(item.getEncryptedData())
                 .folderId(item.getFolder() != null ? item.getFolder().getId() : null)
                 .favorite(item.getFavorite())
+                .revisionNumber(item.getRevisionNumber())
+                .website(item.getWebsite())
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())
                 .deletedAt(item.getDeletedAt())

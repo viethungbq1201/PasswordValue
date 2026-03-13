@@ -37,8 +37,8 @@ export default function VaultItemModal({ item, onClose, onSaved }) {
             const payload = {
                 type,
                 favorite,
-                // The backend expects encryptedData as byte[] (which parses from base64 string)
                 encryptedData: btoa(unescape(encodeURIComponent(rawJson))),
+                website: website || null,
             }
 
             if (isEdit) {
@@ -110,8 +110,8 @@ export default function VaultItemModal({ item, onClose, onSaved }) {
                     {type === 'LOGIN' && (
                         <>
                             <div>
-                                <label className="block text-sm text-vault-muted mb-1.5">Website</label>
-                                <input className="input-field" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://example.com" />
+                                <label className="block text-sm text-vault-muted mb-1.5">Website / Login URL</label>
+                                <input className="input-field" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://github.com/login" />
                             </div>
                             <div>
                                 <label className="block text-sm text-vault-muted mb-1.5">Username</label>
@@ -143,8 +143,8 @@ export default function VaultItemModal({ item, onClose, onSaved }) {
                                                 <div
                                                     key={i}
                                                     className={`flex-1 rounded-full transition-colors ${zxcvbn(password).score > i
-                                                            ? (zxcvbn(password).score < 2 ? 'bg-vault-red' : zxcvbn(password).score < 3 ? 'bg-vault-amber' : 'bg-vault-green')
-                                                            : 'bg-vault-border'
+                                                        ? (zxcvbn(password).score < 2 ? 'bg-vault-red' : zxcvbn(password).score < 3 ? 'bg-vault-amber' : 'bg-vault-green')
+                                                        : 'bg-vault-border'
                                                         }`}
                                                 />
                                             ))}

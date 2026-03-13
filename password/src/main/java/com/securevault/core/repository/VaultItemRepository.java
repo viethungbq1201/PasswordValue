@@ -37,4 +37,10 @@ public interface VaultItemRepository extends JpaRepository<VaultItem, UUID> {
 
     /** All items for full sync (including soft-deleted) */
     List<VaultItem> findByUserId(UUID userId);
+
+    /** Match vault items by domain substring in the website column */
+    @Query("SELECT v FROM VaultItem v WHERE v.user.id = :userId AND v.deletedAt IS NULL AND LOWER(v.website) LIKE LOWER(CONCAT('%', :domain, '%'))")
+    List<VaultItem> findByUserIdAndWebsiteContainingDomain(
+            @Param("userId") UUID userId,
+            @Param("domain") String domain);
 }

@@ -1,1 +1,74 @@
-/* Content script injected styles — minimal, non-intrusive */
+/* Content script injected styles — minimal, primarily for Shadow DOM containers */
+
+.securevault-dropdown-wrapper {
+    position: absolute;
+    z-index: 2147483647;
+    pointer-events: none; /* Let clicks pass through if not on the dropdown itself */
+}
+
+.securevault-dropdown-wrapper.active {
+    pointer-events: auto;
+}
+
+/* 
+ * The following styles are defined here for reference, 
+ * but are actually injected directly into the Shadow DOM 
+ * by the content script to ensure they are fully isolated 
+ * from the host page's stylesheets.
+ */
+.sv-dropdown {
+    background: #1E2A47;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    width: 280px;
+    max-height: 250px;
+    overflow-y: auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #E8EAED;
+}
+
+.sv-dropdown-header {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #9AA0A6;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.sv-credential-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    transition: background 0.1s ease;
+}
+
+.sv-credential-item:hover,
+.sv-credential-item:focus {
+    background: #243154;
+    outline: none;
+}
+
+.sv-item-username {
+    font-size: 13px;
+    font-weight: 500;
+    color: #FFFFFF;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sv-item-password {
+    font-size: 11px;
+    color: #9AA0A6;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}

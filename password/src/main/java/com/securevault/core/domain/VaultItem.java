@@ -37,6 +37,9 @@ public class VaultItem {
     @Column(name = "encrypted_data", nullable = false, columnDefinition = "BYTEA")
     private byte[] encryptedData;
 
+    @Column(length = 2048)
+    private String website;
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean favorite = false;

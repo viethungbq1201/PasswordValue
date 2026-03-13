@@ -20,4 +20,6 @@ public class VaultItemRequest {
     private Boolean favorite;
 
     private Integer revisionNumber;
+
+    private String website;
 }

@@ -934,9 +934,139 @@ SecureVault ensures seamless multi-device capabilities through a robust Sync Eng
 - **Delta Payloads**: Devices only pull records that were `updatedAt` after their `last_sync_at` timestamp.
 - **Conflict Resolution**: The client uploads its encrypted payloads with a `revisionNumber` and `updatedAt`. If the record already exists and the payload's `updatedAt` is newer, the database safely overwrites it without requiring the server to decrypt the vault.
 
-### Autofill Architecture
-- **Browser Extension**: A DOM-injected Content Script actively inspects form fields for `input[type="password"]` and known username selectors. When a match is found on the current domain, a message is routed to the Service Worker (`background.js`) to trigger a secure UI dropdown that autofills the injected react-driven elements natively.
-- **Mobile Autofill**: Integrated deeply with native Android `AutofillService` and iOS `Password AutoFill Extension`. Flutter platform channels (`MethodChannel('com.securevault/autofill')`) securely pass matching unencrypted credentials to OS-level background workers without retaining plaintext in system memories.
+---
+
+## 16. Autofill System Architecture
+
+### Overview
+
+SecureVault implements a Bitwarden-style professional autofill system across browser extension, Android, and iOS. The architecture maintains the zero-knowledge security model — the server performs domain matching on plaintext URL metadata, but all credential data (username, password) remains AES-256-GCM encrypted and is decrypted exclusively on the client.
+
+### Database Schema — `vault_urls`
+
+Each vault item can have multiple associated URLs with configurable match types:
+
+```sql
+CREATE TABLE vault_urls (
+    id            UUID PRIMARY KEY,
+    vault_item_id UUID NOT NULL REFERENCES vault_items(id) ON DELETE CASCADE,
+    url           VARCHAR(2048) NOT NULL,
+    match_type    VARCHAR(20) NOT NULL DEFAULT 'DOMAIN'
+);
+```
+
+Match types:
+
+| Type | Behavior | Example |
+|------|----------|---------|
+| `DOMAIN` | Root domain comparison | `accounts.google.com` matches stored `google.com` |
+| `HOST` | Exact hostname match | `gist.github.com` does NOT match `github.com` |
+| `STARTS_WITH` | Full URL prefix comparison | `https://github.com/login` matches stored `https://github.com` |
+| `EXACT` | Full URL exact match | Must match the stored URL character-for-character |
+
+### Domain Normalization — Public Suffix List
+
+The `VaultMatchingService` implements proper root-domain detection using a Public Suffix List approach to handle multi-part TLDs:
+
+```
+accounts.google.com → google.com
+m.facebook.com      → facebook.com
+bbc.co.uk           → bbc.co.uk  (co.uk is a multi-part TLD)
+mail.example.com.au → example.com.au
+```
+
+### Autofill API
+
+```
+GET /api/autofill?domain=github.com&fullUrl=https://github.com/login
+Authorization: Bearer <JWT>
+```
+
+**Slim response** (no notes, attachments, or extra vault metadata):
+
+```json
+[{
+  "id": "uuid",
+  "encryptedData": "<byte-array>",
+  "urls": [
+    {"id": "uuid", "url": "https://github.com", "matchType": "DOMAIN"}
+  ]
+}]
+```
+
+### Browser Extension Autofill Flow
+
+```mermaid
+sequenceDiagram
+    participant Page as Web Page
+    participant CS as Content Script
+    participant BG as Background Worker
+    participant API as Backend API
+    participant Cache as Credential Cache
+
+    Page->>CS: Page loads, DOMContentLoaded
+    CS->>CS: detectLoginForms()
+    CS->>BG: LOGIN_FORM_DETECTED
+    CS->>CS: User focuses username/password field
+    CS->>BG: GET_MATCHING_CREDENTIALS(domain, fullUrl)
+    BG->>Cache: Check 60s TTL cache
+    alt Cache Hit
+        Cache-->>BG: Return cached matches
+    else Cache Miss
+        BG->>API: GET /api/autofill?domain=X&fullUrl=Y
+        API-->>BG: Encrypted matches
+        BG->>Cache: Store with TTL
+    end
+    BG-->>CS: Encrypted matches
+    CS->>CS: Decrypt with WebCrypto (AES-256-GCM)
+    CS->>CS: showAutofillDropdown()
+    CS->>Page: Fill username/password fields
+```
+
+**Key security decisions:**
+- **WebCrypto decryption**: Uses `crypto.subtle.decrypt('AES-GCM', ...)` — not `atob()` — to decrypt vault data client-side
+- **60-second credential cache**: Reduces API calls; cache is invalidated on credential save/update
+- **Login success detection**: Save prompts appear only after detecting successful login (URL redirect, DOM change, or password field disappearance) — not immediately on form submission
+
+### Android Autofill Integration
+
+The `AndroidAutofillService` extends Android's native `AutofillService` to support both:
+
+1. **Web login forms**: Extracts web domain from `AssistStructure` via `ViewNode.webDomain`
+2. **Native mobile apps**: Falls back to `ActivityComponent.packageName` for app-to-vault matching
+
+```
+AssistStructure → extractIdentifiers() → (domain, fullUrl)
+                → parseStructure()     → (usernameId, passwordId)
+                → MethodChannel        → Flutter autofill_service.dart
+                → Build FillResponse   → Android autofill UI
+```
+
+### iOS AutoFill Integration
+
+The `CredentialProviderViewController` extends `ASCredentialProviderViewController`:
+
+1. **Associated Domains**: Uses `webcredentials:` capability for automatic domain association
+2. **QuickType bar**: Registers `ASPasswordCredentialIdentity` entries for keyboard suggestions
+3. **Credential provision**: Returns `ASPasswordCredential` when user selects a credential
+
+**Setup:**
+1. Add AutoFill Credential Provider Extension target in Xcode
+2. Enable "AutoFill Credential Provider" capability
+3. Configure Associated Domains: `webcredentials:yourdomain.com`
+4. Host `apple-app-site-association` file on the domain
+
+### Zero-Knowledge Client-Side Decryption Flow
+
+```
+Master Password → Argon2id (64MB, 3 iter) → 256-bit AES Key
+    ↓
+AES Key + Random 12-byte IV → AES-256-GCM Encrypt → encryptedData (BYTEA)
+    ↓
+Server stores encrypted blob → Client decrypts with stored key
+```
+
+The server NEVER has access to the AES key or plaintext credentials. The `vault_urls` table stores only URL metadata (not passwords) to enable server-side domain matching.
 
 ### Biometric Models
 The Flutter app protects the **Master AES-256-GCM Encryption Key** natively with `local_auth`. 
@@ -948,3 +1078,4 @@ The Flutter app protects the **Master AES-256-GCM Encryption Key** natively with
 ## License
 
 Private — Personal use only.
+

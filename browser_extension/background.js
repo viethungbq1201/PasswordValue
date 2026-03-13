@@ -1,15 +1,38 @@
 /**
  * SecureVault Browser Extension — Background Service Worker
  *
- * Tracks login form detections and manages badge state.
+ * Tracks login form detections, manages badge state, credential cache,
+ * and communicates with the backend autofill API.
  */
 
-// Track pages with login forms
 const loginPages = new Map();
 const API_BASE = 'http://localhost:8080/api';
 
+// ── Credential Cache (60-second TTL) ──────────────────────
+const credentialCache = new Map();
+const CACHE_TTL_MS = 60000;
+
+console.log("[SecureVault] Background service worker started.");
+
+function getCachedCredentials(domain) {
+    const entry = credentialCache.get(domain);
+    if (entry && (Date.now() - entry.timestamp < CACHE_TTL_MS)) {
+        console.log(`[SecureVault] Cache hit for domain: ${domain}`);
+        return entry.data;
+    }
+    credentialCache.delete(domain);
+    return null;
+}
+
+function setCachedCredentials(domain, data) {
+    console.log(`[SecureVault] Caching ${data.length} credentials for domain: ${domain}`);
+    credentialCache.set(domain, { data, timestamp: Date.now() });
+}
+
+// ── Message Handler ───────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'LOGIN_FORM_DETECTED' && sender.tab?.id) {
+        console.log(`[SecureVault] Login form detected on ${message.domain} (count: ${message.formCount})`);
         loginPages.set(sender.tab.id, {
             domain: message.domain,
             url: message.url,
@@ -20,53 +43,70 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.type === 'GET_MATCHING_CREDENTIALS') {
-        handleGetCredentials(message.domain).then(sendResponse);
-        return true;
+        handleGetCredentials(message.domain, message.fullUrl).then(sendResponse);
+        return true; // Keep message channel open for async response
     }
 
     if (message.type === 'SAVE_CREDENTIAL') {
         handleSaveCredential(message.payload).then(sendResponse);
         return true;
     }
+
+    if (message.type === 'GET_MASTER_KEY') {
+        chrome.storage.local.get('sv_master_key').then(sendResponse).catch(err => {
+            console.error(`[SecureVault] Error accessing storage for master key:`, err);
+            sendResponse({ error: err.message });
+        });
+        return true;
+    }
 });
 
-async function handleGetCredentials(domain) {
+// ── Fetch Credentials via /api/vault/match ────────────────
+async function handleGetCredentials(domain, fullUrl) {
     try {
+        console.log(`[SecureVault] Fetching credentials for domain: ${domain} (url: ${fullUrl})`);
         const { sv_token } = await chrome.storage.local.get('sv_token');
-        if (!sv_token) return { error: 'Not logged in' };
+        if (!sv_token) {
+            console.warn(`[SecureVault] Not logged in (missing token). Cannot fetch matches.`);
+            return { error: 'Not logged in' };
+        }
 
-        const res = await fetch(`${API_BASE}/vault`, {
+        // Check cache first
+        const cached = getCachedCredentials(domain);
+        if (cached) return { matches: cached };
+
+        let url = `${API_BASE}/vault/match?domain=${encodeURIComponent(domain)}`;
+
+        const res = await fetch(url, {
             headers: { 'Authorization': `Bearer ${sv_token}` }
         });
 
-        if (!res.ok) return { error: 'Failed to fetch' };
+        if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+                console.warn(`[SecureVault] Unauthorized to fetch credentials (maybe token expired)`);
+                return { error: 'Unauthorized' };
+            }
+            console.error(`[SecureVault] API returned error: ${res.status} ${res.statusText}`);
+            return { error: `Failed to fetch: ${res.status}` };
+        }
 
-        const rawItems = await res.json();
-        const items = rawItems.map(item => {
-            try {
-                if (item.encryptedData) {
-                    const decodedStr = atob(item.encryptedData);
-                    const decodedData = JSON.parse(decodeURIComponent(escape(decodedStr)));
-                    return { ...item, ...decodedData };
-                }
-            } catch (e) { }
-            return item;
-        });
+        const items = await res.json();
 
-        const matches = items.filter(item =>
-            item.type === 'LOGIN' &&
-            item.website &&
-            item.website.toLowerCase().includes(domain.toLowerCase())
-        );
+        // Cache the raw API response (encrypted data)
+        setCachedCredentials(domain, items);
 
-        return { matches };
+        console.log(`[SecureVault] Found ${items.length} matching credentials from API.`);
+        return { matches: items };
     } catch (err) {
+        console.error(`[SecureVault] Network/Fetch error:`, err);
         return { error: err.message };
     }
 }
 
+// ── Save / Update Credential ──────────────────────────────
 async function handleSaveCredential(payload) {
     try {
+        console.log(`[SecureVault] Handling save credential prompt for ${payload.username}`);
         const { sv_token } = await chrome.storage.local.get('sv_token');
         if (!sv_token) return { error: 'Not logged in' };
 
@@ -81,44 +121,40 @@ async function handleSaveCredential(payload) {
             type: 'LOGIN',
             favorite: false,
             encryptedData: btoa(unescape(encodeURIComponent(rawJson))),
+            website: payload.website,
         };
 
         if (payload.id) {
-            // Update
-            await fetch(`${API_BASE}/vault/${payload.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${sv_token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(apiPayload)
-            });
+            console.log(`[SecureVault] Updating existing item ${payload.id}`);
+            apiPayload.id = payload.id;
         } else {
-            // Create
-            await fetch(`${API_BASE}/vault`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${sv_token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(apiPayload)
-            });
+            console.log(`[SecureVault] Creating new vault item`);
         }
+
+        const method = payload.id ? 'PUT' : 'POST';
+        const endpoint = payload.id ? `${API_BASE}/vault/${payload.id}` : `${API_BASE}/vault`;
+
+        const res = await fetch(endpoint, {
+            method: method,
+            headers: {
+                'Authorization': `Bearer ${sv_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(apiPayload)
+        });
+
+        if (!res.ok) {
+            console.error(`[SecureVault] Save failed: ${res.status}`);
+            return { error: 'Failed to save' };
+        }
+
+        console.log(`[SecureVault] Credential saved successfully. Tracking cache invalidation.`);
+        // Invalidate cache for this domain so new fetch gets updated data
+        credentialCache.delete(payload.website);
+
         return { success: true };
     } catch (err) {
+        console.error(`[SecureVault] Save exception:`, err);
         return { error: err.message };
     }
 }
-
-// Clean up on tab close
-chrome.tabs.onRemoved.addListener((tabId) => {
-    loginPages.delete(tabId);
-});
-
-// Clean up on navigation
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status === 'loading') {
-        loginPages.delete(tabId);
-        chrome.action.setBadgeText({ text: '', tabId });
-    }
-});

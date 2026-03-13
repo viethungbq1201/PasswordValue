@@ -5,6 +5,8 @@
  * Communicates with backend API via fetch().
  */
 
+console.log("SecureVault popup loaded");
+
 const API_BASE = 'http://localhost:8080/api';
 
 // ── DOM Elements ──────────────────────────────────────────
@@ -89,6 +91,15 @@ async function handleLogin() {
 async function fetchVault(token) {
     showLoading(true);
     try {
+        // Get current tab domain for prioritized matching
+        let currentDomain = null;
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab?.url) {
+                currentDomain = new URL(tab.url).hostname;
+            }
+        } catch (e) { }
+
         const res = await fetch(`${API_BASE}/vault`, {
             headers: { 'Authorization': `Bearer ${token}` },
         });
@@ -107,9 +118,20 @@ async function fetchVault(token) {
                 }
                 return item;
             });
+
+            // Sort: domain-matched items first
+            if (currentDomain) {
+                allItems.sort((a, b) => {
+                    const aMatch = matchesDomain(a, currentDomain);
+                    const bMatch = matchesDomain(b, currentDomain);
+                    if (aMatch && !bMatch) return -1;
+                    if (!aMatch && bMatch) return 1;
+                    return 0;
+                });
+            }
+
             renderItems(allItems);
         } else if (res.status === 401 || res.status === 403) {
-            // Token expired
             await handleLogout();
         }
     } catch (err) {
@@ -117,6 +139,13 @@ async function fetchVault(token) {
     } finally {
         showLoading(false);
     }
+}
+
+function matchesDomain(item, domain) {
+    if (!item.website) return false;
+    const itemDomain = item.website.toLowerCase()
+        .replace('https://', '').replace('http://', '').replace('www.', '');
+    return domain.toLowerCase().includes(itemDomain) || itemDomain.includes(domain.toLowerCase());
 }
 
 // ── Render Items ──────────────────────────────────────────

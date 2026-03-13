@@ -64,4 +64,9 @@ export const syncApi = {
     downloadFull: () => api.post('/sync/full'),
 }
 
+// ── Autofill ──────────────────────────────────────────────
+export const autofillApi = {
+    match: (domain) => api.get(`/vault/match?domain=${encodeURIComponent(domain)}`),
+}
+
 export default api

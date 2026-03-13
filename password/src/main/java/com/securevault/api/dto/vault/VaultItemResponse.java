@@ -17,6 +17,7 @@ public class VaultItemResponse {
     private UUID folderId;
     private Boolean favorite;
     private Integer revisionNumber;
+    private String website;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deletedAt;
