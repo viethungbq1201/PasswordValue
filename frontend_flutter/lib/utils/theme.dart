@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SecureVaultTheme {
   // Brand colors
@@ -18,23 +19,22 @@ class SecureVaultTheme {
       brightness: Brightness.dark,
       primaryColor: primaryBlue,
       scaffoldBackgroundColor: primaryDark,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarThemeData( // Removed const here
         backgroundColor: surfaceDark,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
-          fontFamily: 'Inter',
+        titleTextStyle: GoogleFonts.inter(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardDark,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      inputDecorationTheme: InputDecorationTheme(
+      inputDecorationTheme: InputDecorationThemeData(
         filled: true,
         fillColor: cardDark,
         border: OutlineInputBorder(
@@ -54,8 +54,7 @@ class SecureVaultTheme {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
+          textStyle: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -64,7 +63,7 @@ class SecureVaultTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: accentTeal,
-          textStyle: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w500),
+          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w500),
         ),
       ),
       colorScheme: const ColorScheme.dark(
@@ -73,7 +72,7 @@ class SecureVaultTheme {
         surface: surfaceDark,
         error: errorRed,
       ),
-      fontFamily: 'Inter',
+      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
     );
   }
 
@@ -82,24 +81,23 @@ class SecureVaultTheme {
       brightness: Brightness.light,
       primaryColor: primaryBlue,
       scaffoldBackgroundColor: const Color(0xFFF5F5F5),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarThemeData( // Removed const here
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
-          fontFamily: 'Inter',
+        titleTextStyle: GoogleFonts.inter(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF1A1A2E),
+          color: const Color(0xFF1A1A2E),
         ),
-        iconTheme: IconThemeData(color: Color(0xFF1A1A2E)),
+        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 1,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      inputDecorationTheme: InputDecorationTheme(
+      inputDecorationTheme: InputDecorationThemeData(
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
@@ -118,8 +116,7 @@ class SecureVaultTheme {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
+          textStyle: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -130,7 +127,7 @@ class SecureVaultTheme {
         secondary: accentTeal,
         error: errorRed,
       ),
-      fontFamily: 'Inter',
+      textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
     );
   }
 }

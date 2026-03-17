@@ -130,7 +130,8 @@ class AutofillService {
         username: data['username'],
         password: data['password'],
       );
-      await _vaultService.addItem(newItem);
+      if (_authToken == null) return false;
+      await _vaultService.createItem(_authToken!, newItem);
       return true;
     } catch (e) {
       return false;
