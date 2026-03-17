@@ -6,7 +6,7 @@
  */
 
 const loginPages = new Map();
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = 'https://passwordvalue-production.up.railway.app/api';
 
 // ── Credential Cache (60-second TTL) ──────────────────────
 const credentialCache = new Map();

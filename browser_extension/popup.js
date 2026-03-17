@@ -7,7 +7,7 @@
 
 console.log("SecureVault popup loaded");
 
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = 'https://passwordvalue-production.up.railway.app/api';
 
 // ── DOM Elements ──────────────────────────────────────────
 const loginView = document.getElementById('login-view');
