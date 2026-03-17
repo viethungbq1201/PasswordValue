@@ -30,43 +30,43 @@ api.interceptors.response.use(
 // ── Auth ──────────────────────────────────────────────────
 export const authApi = {
     register: (email, masterPassword) =>
-        api.post('/auth/register', { email, masterPassword }),
+        api.post('auth/register', { email, masterPassword }),
     login: (email, masterPassword) =>
-        api.post('/auth/login', { email, masterPassword }),
+        api.post('auth/login', { email, masterPassword }),
 }
 
 // ── Vault ─────────────────────────────────────────────────
 export const vaultApi = {
-    getAll: () => api.get('/vault'),
-    getByType: (type) => api.get(`/vault?type=${type}`),
-    getFavorites: () => api.get('/vault/favorites'),
-    getTrash: () => api.get('/vault/trash'),
-    getByFolder: (id) => api.get(`/vault/folder/${id}`),
-    create: (data) => api.post('/vault', data),
-    update: (id, data) => api.put(`/vault/${id}`, data),
-    delete: (id) => api.delete(`/vault/${id}`),
-    restore: (id) => api.post(`/vault/${id}/restore`),
-    deletePermanent: (id) => api.delete(`/vault/${id}/permanent`),
+    getAll: () => api.get('vault'),
+    getByType: (type) => api.get(`vault?type=${type}`),
+    getFavorites: () => api.get('vault/favorites'),
+    getTrash: () => api.get('vault/trash'),
+    getByFolder: (id) => api.get(`vault/folder/${id}`),
+    create: (data) => api.post('vault', data),
+    update: (id, data) => api.put(`vault/${id}`, data),
+    delete: (id) => api.delete(`vault/${id}`),
+    restore: (id) => api.post(`vault/${id}/restore`),
+    deletePermanent: (id) => api.delete(`vault/${id}/permanent`),
 }
 
 // ── Folders ───────────────────────────────────────────────
 export const folderApi = {
-    getAll: () => api.get('/folders'),
-    create: (name) => api.post('/folders', { name }),
-    update: (id, name) => api.put(`/folders/${id}`, { name }),
-    delete: (id) => api.delete(`/folders/${id}`),
+    getAll: () => api.get('folders'),
+    create: (name) => api.post('folders', { name }),
+    update: (id, name) => api.put(`folders/${id}`, { name }),
+    delete: (id) => api.delete(`folders/${id}`),
 }
 
 // ── Sync ──────────────────────────────────────────────────
 export const syncApi = {
-    upload: (data) => api.post('/sync/upload', data),
-    downloadDelta: (ts) => api.get(`/sync/download?since=${ts}`),
-    downloadFull: () => api.post('/sync/full'),
+    upload: (data) => api.post('sync/upload', data),
+    downloadDelta: (ts) => api.get(`sync/download?since=${ts}`),
+    downloadFull: () => api.post('sync/full'),
 }
 
 // ── Autofill ──────────────────────────────────────────────
 export const autofillApi = {
-    match: (domain) => api.get(`/vault/match?domain=${encodeURIComponent(domain)}`),
+    match: (domain) => api.get(`vault/match?domain=${encodeURIComponent(domain)}`),
 }
 
 export default api
