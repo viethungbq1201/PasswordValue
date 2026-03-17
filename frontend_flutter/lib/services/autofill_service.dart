@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:securevault/models/vault_item.dart';
 import 'package:securevault/services/vault_service.dart';
+import 'package:securevault/utils/constants.dart';
 import 'package:http/http.dart' as http;
 
 class AutofillService {
@@ -37,7 +38,7 @@ class AutofillService {
     // Try backend API first
     if (_authToken != null) {
       try {
-        final uri = Uri.parse('http://localhost:8080/api/autofill')
+        final uri = Uri.parse('${ApiConstants.baseUrl}/autofill')
             .replace(queryParameters: {
           'domain': domain,
           if (fullUrl != null) 'fullUrl': fullUrl,
