@@ -52,7 +52,8 @@ public class SecurityConfig {
                 "chrome-extension://*",
                 "http://localhost:5173",
                 "http://localhost:*",
-                "https://*.onrender.com"));
+                "https://*.onrender.com",
+                "https://password-value.vercel.app"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
