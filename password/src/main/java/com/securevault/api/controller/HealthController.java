@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping({"/api", ""})
 public class HealthController {
 
     @GetMapping("/health")

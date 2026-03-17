@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/sync")
+@RequestMapping({"/api/sync", "/sync"})
 public class SyncController {
 
     private final SyncService syncService;

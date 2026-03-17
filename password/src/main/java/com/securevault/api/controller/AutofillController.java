@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping({"/api", ""})
 public class AutofillController {
 
     private final VaultMatchingService vaultMatchingService;

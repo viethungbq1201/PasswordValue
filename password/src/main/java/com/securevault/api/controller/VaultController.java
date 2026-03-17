@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/vault")
+@RequestMapping({"/api/vault", "/vault"})
 public class VaultController {
 
     private final VaultService vaultService;
