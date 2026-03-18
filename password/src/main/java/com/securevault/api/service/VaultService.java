@@ -23,13 +23,16 @@ public class VaultService {
     private final VaultItemRepository vaultItemRepository;
     private final UserRepository userRepository;
     private final FolderRepository folderRepository;
+    private final SyncNotificationService syncNotificationService;
 
     public VaultService(VaultItemRepository vaultItemRepository,
             UserRepository userRepository,
-            FolderRepository folderRepository) {
+            FolderRepository folderRepository,
+            SyncNotificationService syncNotificationService) {
         this.vaultItemRepository = vaultItemRepository;
         this.userRepository = userRepository;
         this.folderRepository = folderRepository;
+        this.syncNotificationService = syncNotificationService;
     }
 
     public List<VaultItemResponse> getVaultItems(UUID userId) {
@@ -79,6 +82,7 @@ public class VaultService {
                 .build();
 
         item = vaultItemRepository.save(item);
+        syncNotificationService.notifySync(userId);
         return toResponse(item);
     }
 
@@ -126,6 +130,7 @@ public class VaultService {
 
         item.setDeletedAt(LocalDateTime.now());
         vaultItemRepository.save(item);
+        syncNotificationService.notifySync(userId);
     }
 
     @Transactional
@@ -139,6 +144,7 @@ public class VaultService {
 
         item.setDeletedAt(null);
         item = vaultItemRepository.save(item);
+        syncNotificationService.notifySync(userId);
         return toResponse(item);
     }
 
@@ -152,6 +158,7 @@ public class VaultService {
         }
 
         vaultItemRepository.delete(item);
+        syncNotificationService.notifySync(userId);
     }
 
     private VaultItemResponse toResponse(VaultItem item) {

@@ -14,6 +14,57 @@ const CACHE_TTL_MS = 60000;
 
 console.log("[SecureVault] Background service worker started.");
 
+let syncSocket = null;
+
+function connectSyncSocket() {
+    chrome.storage.local.get(['sv_token', 'sv_userId']).then(({ sv_token, sv_userId }) => {
+        if (!sv_token) {
+            console.log("[SecureVault] No token found, skipping sync connection.");
+            return;
+        }
+        
+        // If we don't have user_id cached, we can't subscribe to the specific user channel
+        // In a real app we might fetch it once here if missing
+        if (!sv_userId) {
+            console.warn("[SecureVault] No sv_userId found, cannot sync yet.");
+            return;
+        }
+
+        if (syncSocket && syncSocket.readyState <= 1) return; // Already connecting or connected
+
+        const wsUrl = API_BASE.replace('https', 'wss').replace('http', 'ws').replace('/api', '') + '/ws-sync-notification';
+        console.log(`[SecureVault] Connecting to sync WebSocket: ${wsUrl}`);
+        
+        syncSocket = new WebSocket(wsUrl);
+
+        syncSocket.onopen = () => {
+            console.log("[SecureVault] Sync WebSocket connected. Authenticating...");
+            syncSocket.send("AUTH:" + sv_userId);
+        };
+
+        syncSocket.onmessage = (event) => {
+            if (event.data === 'SYNC_REQUIRED') {
+                console.log("[SecureVault] Real-time sync notification received. Clearing cache.");
+                credentialCache.clear();
+            } else if (event.data === 'AUTH_OK') {
+                console.log("[SecureVault] Sync WebSocket authenticated successfully.");
+            }
+        };
+
+        syncSocket.onclose = () => {
+            console.log("[SecureVault] Sync WebSocket closed. Reconnecting in 10s...");
+            setTimeout(connectSyncSocket, 10000);
+        };
+
+        syncSocket.onerror = (err) => {
+            console.error("[SecureVault] Sync WebSocket error:", err);
+        };
+    });
+}
+
+// Start connection attempt
+connectSyncSocket();
+
 function getCachedCredentials(domain) {
     const entry = credentialCache.get(domain);
     if (entry && (Date.now() - entry.timestamp < CACHE_TTL_MS)) {

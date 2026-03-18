@@ -26,15 +26,18 @@ public class SyncService {
     private final DeviceSyncStateRepository deviceSyncStateRepository;
     private final UserRepository userRepository;
     private final FolderRepository folderRepository;
+    private final SyncNotificationService syncNotificationService;
 
     public SyncService(VaultItemRepository vaultItemRepository,
             DeviceSyncStateRepository deviceSyncStateRepository,
             UserRepository userRepository,
-            FolderRepository folderRepository) {
+            FolderRepository folderRepository,
+            SyncNotificationService syncNotificationService) {
         this.vaultItemRepository = vaultItemRepository;
         this.deviceSyncStateRepository = deviceSyncStateRepository;
         this.userRepository = userRepository;
         this.folderRepository = folderRepository;
+        this.syncNotificationService = syncNotificationService;
     }
 
     @Transactional
@@ -106,6 +109,7 @@ public class SyncService {
 
         deviceSyncState.setLastSyncAt(LocalDateTime.now());
         deviceSyncStateRepository.save(deviceSyncState);
+        syncNotificationService.notifySync(userId);
 
         return buildSyncResponse(userId);
     }
