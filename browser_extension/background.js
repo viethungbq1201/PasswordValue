@@ -66,8 +66,41 @@ function connectSyncSocket() {
 connectSyncSocket();
 
 // ── Auto-lock Monitoring ──────────────────────────────────
-chrome.alarms.create('lockCheck', { periodInMinutes: 1 });
+async function initAutoLock() {
+    const { sv_auto_lock_timer } = await chrome.storage.local.get('sv_auto_lock_timer');
+    updateIdleDetection(sv_auto_lock_timer);
+}
 
+function updateIdleDetection(timerMinutes) {
+    const minutes = parseInt(timerMinutes) || 0;
+    if (minutes > 0) {
+        // chrome.idle requires interval in seconds (minimum 15s)
+        chrome.idle.setDetectionInterval(minutes * 60);
+        console.log(`[SecureVault] Idle detection interval set to ${minutes} minutes.`);
+    } else {
+        console.log("[SecureVault] Auto-lock disabled (timer is 0 or 'Never').");
+    }
+}
+
+// Listen for system idle state changes
+chrome.idle.onStateChanged.addListener(async (state) => {
+    const { sv_token, sv_auto_lock_timer } = await chrome.storage.local.get(['sv_token', 'sv_auto_lock_timer']);
+    if (!sv_token) return;
+
+    if (state === 'locked') {
+        console.log("[SecureVault] System locked. Auto-locking vault.");
+        await lockVault();
+    } else if (state === 'idle') {
+        const minutes = parseInt(sv_auto_lock_timer) || 0;
+        if (minutes > 0) {
+            console.log(`[SecureVault] Idle detected for ${minutes}m. Auto-locking vault.`);
+            await lockVault();
+        }
+    }
+});
+
+// Periodic fallback check (optional, but keeps the alarm for redundancy)
+chrome.alarms.create('lockCheck', { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name === 'lockCheck') {
         const { sv_token, sv_last_active, sv_auto_lock_timer } = await chrome.storage.local.get([
@@ -80,24 +113,35 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         const now = Date.now();
 
         if (now - sv_last_active > timerMs) {
-            console.log("[SecureVault] Auto-lock triggered due to inactivity.");
+            console.log("[SecureVault] Inactivity fallback triggered auto-lock.");
             await lockVault();
         }
     }
 });
 
-chrome.idle.onStateChanged.addListener(async (state) => {
-    if (state === 'locked') {
-        // Many users want literal "Lock when system is locked"
-        console.log("[SecureVault] System locked. Auto-locking vault.");
-        await lockVault();
+// Watch for setting changes to update detector immediately
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.sv_auto_lock_timer) {
+        updateIdleDetection(changes.sv_auto_lock_timer.newValue);
     }
 });
 
 async function lockVault() {
-    await chrome.storage.local.remove(['sv_token', 'sv_last_active']);
-    // Optional: Refresh any open tabs to reflect locked state if needed
+    console.log("[SecureVault] Internal lock triggered. Clearing session storage.");
+    await chrome.storage.local.remove([
+        'sv_token', 
+        'sv_master_key', 
+        'sv_last_active',
+        'sv_email',
+        'sv_userId'
+    ]);
+    credentialCache.clear();
+    // Reset badge
+    chrome.action.setBadgeText({ text: '' });
 }
+
+// Initialize on startup
+initAutoLock();
 
 function getCachedCredentials(domain) {
     const entry = credentialCache.get(domain);
