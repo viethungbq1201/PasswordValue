@@ -5,7 +5,9 @@
     "description": "Zero-knowledge password manager — autofill credentials securely",
     "permissions": [
         "storage",
-        "activeTab"
+        "activeTab",
+        "alarms",
+        "idle"
     ],
     "host_permissions": [
         "http://localhost:8080/*",

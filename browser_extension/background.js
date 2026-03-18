@@ -65,6 +65,40 @@ function connectSyncSocket() {
 // Start connection attempt
 connectSyncSocket();
 
+// ── Auto-lock Monitoring ──────────────────────────────────
+chrome.alarms.create('lockCheck', { periodInMinutes: 1 });
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === 'lockCheck') {
+        const { sv_token, sv_last_active, sv_auto_lock_timer } = await chrome.storage.local.get([
+            'sv_token', 'sv_last_active', 'sv_auto_lock_timer'
+        ]);
+
+        if (!sv_token || !sv_auto_lock_timer || sv_auto_lock_timer === '0') return;
+
+        const timerMs = parseInt(sv_auto_lock_timer) * 60000;
+        const now = Date.now();
+
+        if (now - sv_last_active > timerMs) {
+            console.log("[SecureVault] Auto-lock triggered due to inactivity.");
+            await lockVault();
+        }
+    }
+});
+
+chrome.idle.onStateChanged.addListener(async (state) => {
+    if (state === 'locked') {
+        // Many users want literal "Lock when system is locked"
+        console.log("[SecureVault] System locked. Auto-locking vault.");
+        await lockVault();
+    }
+});
+
+async function lockVault() {
+    await chrome.storage.local.remove(['sv_token', 'sv_last_active']);
+    // Optional: Refresh any open tabs to reflect locked state if needed
+}
+
 function getCachedCredentials(domain) {
     const entry = credentialCache.get(domain);
     if (entry && (Date.now() - entry.timestamp < CACHE_TTL_MS)) {
@@ -82,6 +116,11 @@ function setCachedCredentials(domain, data) {
 
 // ── Message Handler ───────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Update last active on any meaningful message
+    if (['LOGIN_FORM_DETECTED', 'GET_MATCHING_CREDENTIALS', 'SAVE_CREDENTIAL', 'VAULT_FETCHED', 'ACTIVITY_DETECTED'].includes(message.type)) {
+        chrome.storage.local.set({ sv_last_active: Date.now() });
+    }
+
     if (message.type === 'LOGIN_FORM_DETECTED' && sender.tab?.id) {
         console.log(`[SecureVault] Login form detected on ${message.domain} (count: ${message.formCount})`);
         loginPages.set(sender.tab.id, {

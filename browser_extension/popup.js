@@ -23,6 +23,13 @@ const searchInput = document.getElementById('search-input');
 const vaultList = document.getElementById('vault-list');
 const itemCount = document.getElementById('item-count');
 
+// Settings Elements
+const settingsView = document.getElementById('settings-view');
+const showSettingsBtn = document.getElementById('show-settings-btn');
+const hideSettingsBtn = document.getElementById('hide-settings-btn');
+const autoLockSelect = document.getElementById('auto-lock-select');
+const clearCacheBtn = document.getElementById('clear-cache-btn');
+
 // Biometric Elements
 const bioUnlockBtn = document.getElementById('biometric-unlock-btn');
 const bioSetupPrompt = document.getElementById('biometric-setup-prompt');
@@ -33,8 +40,16 @@ let allItems = [];
 
 // ── Initialization ────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    const { sv_token, sv_bio_enabled } = await chrome.storage.local.get(['sv_token', 'sv_bio_enabled']);
+    // Update last active
+    await chrome.storage.local.set({ sv_last_active: Date.now() });
+
+    const { sv_token, sv_bio_enabled, sv_auto_lock_timer } = await chrome.storage.local.get([
+        'sv_token', 'sv_bio_enabled', 'sv_auto_lock_timer'
+    ]);
     
+    // Set auto-lock dropdown value
+    if (sv_auto_lock_timer) autoLockSelect.value = sv_auto_lock_timer;
+
     if (sv_token) {
         if (sv_bio_enabled && window.PublicKeyCredential) {
             showLogin();
@@ -63,6 +78,25 @@ passwordInput.addEventListener('keydown', (e) => {
 logoutBtn.addEventListener('click', handleLogout);
 syncBtn.addEventListener('click', handleSync);
 searchInput.addEventListener('input', handleSearch);
+
+// Settings Listeners
+showSettingsBtn.addEventListener('click', () => {
+    vaultView.style.display = 'none';
+    settingsView.style.display = 'block';
+});
+hideSettingsBtn.addEventListener('click', () => {
+    settingsView.style.display = 'none';
+    vaultView.style.display = 'block';
+});
+autoLockSelect.addEventListener('change', async (e) => {
+    const val = e.target.value;
+    await chrome.storage.local.set({ sv_auto_lock_timer: val });
+    showToast('Auto-lock timer updated');
+});
+clearCacheBtn.addEventListener('click', async () => {
+    await chrome.storage.local.remove('sv_credential_cache');
+    showToast('Local cache cleared');
+});
 
 // Biometric Listeners
 bioUnlockBtn?.addEventListener('click', handleBiometricUnlock);
@@ -317,6 +351,7 @@ async function triggerAutofill(username, password) {
                 username: username || '',
                 password: password || '',
             });
+            chrome.runtime.sendMessage({ type: 'ACTIVITY_DETECTED' });
             showToast('Credentials filled');
             setTimeout(() => window.close(), 600);
         }

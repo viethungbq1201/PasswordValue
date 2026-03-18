@@ -37,6 +37,7 @@
                 <h2>My Vault</h2>
                 <div class="vault-actions">
                     <button id="show-gen-btn" class="btn-icon" title="Generator">🔐</button>
+                    <button id="show-settings-btn" class="btn-icon" title="Settings">⚙️</button>
                     <button id="sync-btn" class="btn-icon" title="Sync">🔄</button>
                     <button id="logout-btn" class="btn-icon" title="Logout">↗️</button>
                 </div>
@@ -114,6 +115,35 @@
             <button id="gen-regen-btn" class="btn-primary"
                 style="margin-bottom: 8px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border);">Regenerate</button>
             <button id="gen-copy-btn" class="btn-primary">Copy Password</button>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settings-view" style="display:none;">
+            <div class="vault-header">
+                <h2>Settings</h2>
+                <div class="vault-actions">
+                    <button id="hide-settings-btn" class="btn-icon" title="Back">⬅️</button>
+                </div>
+            </div>
+
+            <div class="settings-group" style="margin-top: 20px;">
+                <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Auto-lock Timer</label>
+                <select id="auto-lock-select" class="btn-secondary" style="text-align: left; padding: 10px;">
+                    <option value="0">Never</option>
+                    <option value="1">1 Minute</option>
+                    <option value="5">5 Minutes</option>
+                    <option value="15">15 Minutes</option>
+                    <option value="60">1 Hour</option>
+                </select>
+                <p style="font-size: 11px; color: var(--text-secondary); margin-top: 8px;">
+                    Automatically locks the vault after period of inactivity.
+                </p>
+            </div>
+
+            <div class="settings-group" style="margin-top: 24px;">
+                <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Security</label>
+                <button id="clear-cache-btn" class="btn-secondary" style="width: auto; padding: 8px 16px;">Clear Local Cache</button>
+            </div>
         </div>
 
         <!-- Loading -->
