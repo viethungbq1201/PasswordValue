@@ -23,16 +23,35 @@ const searchInput = document.getElementById('search-input');
 const vaultList = document.getElementById('vault-list');
 const itemCount = document.getElementById('item-count');
 
+// Biometric Elements
+const bioUnlockBtn = document.getElementById('biometric-unlock-btn');
+const bioSetupPrompt = document.getElementById('biometric-setup-prompt');
+const enableBioBtn = document.getElementById('enable-biometric-btn');
+const dismissBioBtn = document.getElementById('dismiss-biometric-btn');
+
 let allItems = [];
 
 // ── Initialization ────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    const { sv_token } = await chrome.storage.local.get('sv_token');
+    const { sv_token, sv_bio_enabled } = await chrome.storage.local.get(['sv_token', 'sv_bio_enabled']);
+    
     if (sv_token) {
-        showVault();
-        await fetchVault(sv_token);
+        if (sv_bio_enabled && window.PublicKeyCredential) {
+            showLogin();
+            // Hide password fields/login button for cleaner look, only show Unlock with Biometrics
+            emailInput.parentElement.style.display = 'none';
+            passwordInput.parentElement.style.display = 'none';
+            loginBtn.style.display = 'none';
+            bioUnlockBtn.style.display = 'block';
+            bioUnlockBtn.innerText = '🔓 Unlock with Biometrics';
+        } else {
+            showVault();
+            await fetchVault(sv_token);
+        }
     } else {
         showLogin();
+        // Check if we can show "Unlock with Biometrics" (though token is missing, login is better)
+        // If no token, biometric unlock is useless, so we keep standard login
     }
 });
 
@@ -44,6 +63,11 @@ passwordInput.addEventListener('keydown', (e) => {
 logoutBtn.addEventListener('click', handleLogout);
 syncBtn.addEventListener('click', handleSync);
 searchInput.addEventListener('input', handleSearch);
+
+// Biometric Listeners
+bioUnlockBtn?.addEventListener('click', handleBiometricUnlock);
+enableBioBtn?.addEventListener('click', handleEnableBiometric);
+dismissBioBtn?.addEventListener('click', () => bioSetupPrompt.style.display = 'none');
 
 // ── Login ─────────────────────────────────────────────────
 async function handleLogin() {
@@ -84,6 +108,81 @@ async function handleLogin() {
     } finally {
         loginBtn.disabled = false;
         loginBtn.textContent = 'Log In';
+    }
+}
+
+// ── Biometric Unlock Logic ────────────────────────────────
+async function handleEnableBiometric() {
+    try {
+        const { sv_userId, sv_email } = await chrome.storage.local.get(['sv_userId', 'sv_email']);
+        if (!sv_userId) return;
+
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        const createOptions = {
+            publicKey: {
+                challenge,
+                rp: { name: "SecureVault" },
+                user: {
+                    id: new TextEncoder().encode(sv_userId),
+                    name: sv_email || "user@securevault",
+                    displayName: sv_email || "User"
+                },
+                pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+                authenticatorSelection: { authenticatorAttachment: "platform" },
+                timeout: 60000
+            }
+        };
+
+        const credential = await navigator.credentials.create(createOptions);
+        if (credential) {
+            await chrome.storage.local.set({ 
+                sv_bio_enabled: true,
+                sv_bio_id: btoa(String.fromCharCode(...new Uint8Array(credential.rawId)))
+            });
+            bioSetupPrompt.style.display = 'none';
+            showToast('Biometric Unlock enabled');
+        }
+    } catch (err) {
+        console.error('Biometric setup failed', err);
+        showToast('Setup failed: ' + err.message);
+    }
+}
+
+async function handleBiometricUnlock() {
+    try {
+        const { sv_bio_id, sv_token } = await chrome.storage.local.get(['sv_bio_id', 'sv_token']);
+        if (!sv_bio_id || !sv_token) {
+            showError('Biometrics not set up properly');
+            return;
+        }
+
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        const idBytes = Uint8Array.from(atob(sv_bio_id), c => c.charCodeAt(0));
+
+        const getOptions = {
+            publicKey: {
+                challenge,
+                allowCredentials: [{
+                    id: idBytes,
+                    type: 'public-key'
+                }],
+                timeout: 60000
+            }
+        };
+
+        const assertion = await navigator.credentials.get(getOptions);
+        if (assertion) {
+            showVault();
+            await fetchVault(sv_token);
+            showToast('Welcome back!');
+        }
+    } catch (err) {
+        console.error('Biometric unlock failed', err);
+        showError('Biometric unlock failed: ' + err.message);
     }
 }
 

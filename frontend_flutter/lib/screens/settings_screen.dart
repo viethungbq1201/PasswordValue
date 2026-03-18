@@ -30,9 +30,9 @@ class SettingsScreen extends StatelessWidget {
                   leading: const Icon(Icons.fingerprint),
                   title: const Text('Biometric Unlock'),
                   trailing: Switch(
-                    value: false,
+                    value: auth.biometricEnabled,
                     onChanged: (v) {
-                      // TODO: Implement biometric toggle
+                      auth.setBiometricEnabled(v);
                     },
                     activeColor: SecureVaultTheme.primaryBlue,
                   ),

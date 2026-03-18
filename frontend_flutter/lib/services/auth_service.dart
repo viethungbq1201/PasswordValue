@@ -11,6 +11,7 @@ class AuthService extends ChangeNotifier {
   String? _userId;
   String? _email;
   bool _isLoading = false;
+  bool _biometricEnabled = false;
 
   final _storage = const FlutterSecureStorage();
   final _cryptoService = CryptoService();
@@ -21,15 +22,17 @@ class AuthService extends ChangeNotifier {
   String? get token => _token;
   String? get userId => _userId;
   String? get email => _email;
+  bool get biometricEnabled => _biometricEnabled;
 
   /// Try to restore session from secure storage.
   Future<void> tryAutoLogin() async {
     _token = await _storage.read(key: 'jwt_token');
     _userId = await _storage.read(key: 'user_id');
     _email = await _storage.read(key: 'email');
+    _biometricEnabled = (await _storage.read(key: 'biometric_enabled')) == 'true';
     final storedKey = await _storage.read(key: 'sv_master_key');
 
-    if (_token != null && storedKey != null) {
+    if (_token != null && storedKey != null && _biometricEnabled) {
       bool canCheckBiometrics = await _localAuth.canCheckBiometrics;
       bool isDeviceSupported = await _localAuth.isDeviceSupported();
 
@@ -153,6 +156,14 @@ class AuthService extends ChangeNotifier {
     _cryptoService.clearKey();
 
     await _storage.deleteAll();
+    _biometricEnabled = false;
+    notifyListeners();
+  }
+
+  /// Toggle biometric unlock.
+  Future<void> setBiometricEnabled(bool enabled) async {
+    _biometricEnabled = enabled;
+    await _storage.write(key: 'biometric_enabled', value: enabled.toString());
     notifyListeners();
   }
 }

@@ -28,6 +28,7 @@
                     autocomplete="current-password">
             </div>
             <button id="login-btn" class="btn-primary">Log In</button>
+            <button id="biometric-unlock-btn" class="btn-secondary" style="display:none; margin-top: 8px;">🔓 Unlock with Biometrics</button>
         </div>
 
         <!-- Vault View -->
@@ -39,6 +40,12 @@
                     <button id="sync-btn" class="btn-icon" title="Sync">🔄</button>
                     <button id="logout-btn" class="btn-icon" title="Logout">↗️</button>
                 </div>
+            </div>
+
+            <div id="biometric-setup-prompt" class="info-banner" style="display:none; margin-bottom: 12px;">
+                <p>Enable Biometric Unlock for faster access?</p>
+                <button id="enable-biometric-btn" class="btn-small">Enable</button>
+                <button id="dismiss-biometric-btn" class="btn-link">Not now</button>
             </div>
 
             <div class="form-group">
