@@ -59,6 +59,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         return true;
     }
+
+    if (message.type === 'INVALIDATE_CACHE') {
+        console.log(`[SecureVault] Invalidating cache for domain: ${message.domain}`);
+        credentialCache.delete(message.domain);
+        sendResponse({ success: true });
+        return true;
+    }
 });
 
 // ── Fetch Credentials via /api/vault/match ────────────────
@@ -114,7 +121,7 @@ async function handleSaveCredential(payload) {
         if (!sv_token) return { error: 'Not logged in' };
 
         const rawJson = JSON.stringify({
-            name: payload.website,
+            name: payload.name || payload.website,
             website: payload.website,
             username: payload.username,
             password: payload.password

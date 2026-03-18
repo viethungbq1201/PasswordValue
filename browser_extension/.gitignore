@@ -6,4 +6,3 @@ build/
 .vscode/
 .idea/
 *.log
-frontend_flutter/.DS_Store
