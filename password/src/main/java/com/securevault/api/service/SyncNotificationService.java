@@ -1,5 +1,5 @@
 package com.securevault.api.service;
-
+import com.securevault.infrastructure.config.WebSocketSyncConfig;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
