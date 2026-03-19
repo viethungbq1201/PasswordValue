@@ -61,18 +61,22 @@ class VaultService extends ChangeNotifier {
               item.fromDecryptedJson(decrypted);
             }
           } catch (e) {
+            print('[VaultService] Decryption error for item ${item.id}: $e');
             item.name = 'Decryption Error';
           }
           _items.add(item);
         }
       }
     } catch (e) {
-      // Handle error
+      print('[VaultService] Fetch error: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
+
+  /// Get all items without search filtering.
+  List<VaultItem> getAllItems() => List.unmodifiable(_items);
 
   /// Fetch trash items.
   Future<void> fetchTrash(String token) async {
@@ -148,7 +152,7 @@ class VaultService extends ChangeNotifier {
         headers: _authHeaders(token),
         body: jsonEncode({
           'type': item.type.name.toUpperCase(),
-          'encryptedData': base64Decode(encrypted),
+          'encryptedData': encrypted,
           'folderId': item.folderId,
           'favorite': item.favorite,
         }),

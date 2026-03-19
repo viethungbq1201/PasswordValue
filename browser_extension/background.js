@@ -1,9 +1,4 @@
-/**
- * SecureVault Browser Extension — Background Service Worker
- *
- * Tracks login form detections, manages badge state, credential cache,
- * and communicates with the backend autofill API.
- */
+import { decrypt, encrypt, importMasterKey } from './crypto.js';
 
 const loginPages = new Map();
 const API_BASE = 'https://passwordvalue-production.up.railway.app/api';
@@ -16,6 +11,12 @@ console.log("[SecureVault] Background service worker started.");
 
 let syncSocket = null;
 
+async function getMasterKey() {
+    const { sv_master_key_hex } = await chrome.storage.local.get('sv_master_key_hex');
+    if (!sv_master_key_hex) return null;
+    return importMasterKey(sv_master_key_hex);
+}
+
 function connectSyncSocket() {
     chrome.storage.local.get(['sv_token', 'sv_userId']).then(({ sv_token, sv_userId }) => {
         if (!sv_token) {
@@ -23,8 +24,6 @@ function connectSyncSocket() {
             return;
         }
         
-        // If we don't have user_id cached, we can't subscribe to the specific user channel
-        // In a real app we might fetch it once here if missing
         if (!sv_userId) {
             console.warn("[SecureVault] No sv_userId found, cannot sync yet.");
             return;
@@ -74,7 +73,6 @@ async function initAutoLock() {
 function updateIdleDetection(timerMinutes) {
     const minutes = parseInt(timerMinutes) || 0;
     if (minutes > 0) {
-        // chrome.idle requires interval in seconds (minimum 15s)
         chrome.idle.setDetectionInterval(minutes * 60);
         console.log(`[SecureVault] Idle detection interval set to ${minutes} minutes.`);
     } else {
@@ -99,7 +97,7 @@ chrome.idle.onStateChanged.addListener(async (state) => {
     }
 });
 
-// Periodic fallback check (optional, but keeps the alarm for redundancy)
+// Periodic fallback check (optional)
 chrome.alarms.create('lockCheck', { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name === 'lockCheck') {
@@ -130,7 +128,7 @@ async function lockVault() {
     console.log("[SecureVault] Internal lock triggered. Clearing session storage.");
     await chrome.storage.local.remove([
         'sv_token', 
-        'sv_master_key', 
+        'sv_master_key_hex', 
         'sv_last_active',
         'sv_email',
         'sv_userId'
@@ -186,8 +184,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
-    if (message.type === 'GET_MASTER_KEY') {
-        chrome.storage.local.get('sv_master_key').then(sendResponse).catch(err => {
+    if (message.type === 'GET_MASTER_KEY_HEX') {
+        chrome.storage.local.get('sv_master_key_hex').then(sendResponse).catch(err => {
             console.error(`[SecureVault] Error accessing storage for master key:`, err);
             sendResponse({ error: err.message });
         });
@@ -210,6 +208,12 @@ async function handleGetCredentials(domain, fullUrl) {
         if (!sv_token) {
             console.warn(`[SecureVault] Not logged in (missing token). Cannot fetch matches.`);
             return { error: 'Not logged in' };
+        }
+
+        const masterKey = await getMasterKey();
+        if (!masterKey) {
+            console.error("[SecureVault] Vault locked. Master key missing from storage.");
+            return { error: 'Vault locked' };
         }
 
         // Check cache first
@@ -235,12 +239,32 @@ async function handleGetCredentials(domain, fullUrl) {
         }
 
         const items = await res.json();
+        
+        // Decrypt matches
+        const decryptedMatches = await Promise.all(items.map(async (item) => {
+            if (!item.encryptedData) return item;
+            try {
+                // Try AES-GCM
+                const decryptedData = await decrypt(item.encryptedData, masterKey);
+                return { ...item, ...decryptedData };
+            } catch (e) {
+                // Legacy Base64 fallback
+                try {
+                    const decodedStr = atob(item.encryptedData);
+                    const decodedData = JSON.parse(decodeURIComponent(escape(decodedStr)));
+                    return { ...item, ...decodedData, _isLegacy: true };
+                } catch (err) {
+                    console.error("[SecureVault] Failed to decrypt matching item", item.id, e);
+                    return { ...item, name: 'Decryption Error' };
+                }
+            }
+        }));
 
-        // Cache the raw API response (encrypted data)
-        setCachedCredentials(domain, items);
+        // Cache the decrypted response
+        setCachedCredentials(domain, decryptedMatches);
 
-        console.log(`[SecureVault] Found ${items.length} matching credentials from API.`);
-        return { matches: items };
+        console.log(`[SecureVault] Found ${decryptedMatches.length} matching credentials from API.`);
+        return { matches: decryptedMatches };
     } catch (err) {
         console.error(`[SecureVault] Network/Fetch error:`, err);
         return { error: err.message };
@@ -254,17 +278,24 @@ async function handleSaveCredential(payload) {
         const { sv_token } = await chrome.storage.local.get('sv_token');
         if (!sv_token) return { error: 'Not logged in' };
 
-        const rawJson = JSON.stringify({
+        const masterKey = await getMasterKey();
+        if (!masterKey) {
+            return { error: 'Vault locked' };
+        }
+
+        const rawData = {
             name: payload.name || payload.website,
             website: payload.website,
             username: payload.username,
             password: payload.password
-        });
+        };
+
+        const encryptedData = await encrypt(rawData, masterKey);
 
         const apiPayload = {
             type: 'LOGIN',
             favorite: false,
-            encryptedData: btoa(unescape(encodeURIComponent(rawJson))),
+            encryptedData: encryptedData,
             website: payload.website,
         };
 

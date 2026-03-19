@@ -224,6 +224,9 @@ async function handleBiometricUnlock() {
 async function fetchVault(token) {
     showLoading(true);
     try {
+        const { sv_master_key_hex } = await chrome.storage.local.get('sv_master_key_hex');
+        const masterKey = sv_master_key_hex ? await importMasterKey(sv_master_key_hex) : null;
+
         // Get current tab domain for prioritized matching
         let currentDomain = null;
         try {
@@ -239,18 +242,26 @@ async function fetchVault(token) {
 
         if (res.ok) {
             const rawItems = await res.json();
-            allItems = rawItems.map(item => {
+            allItems = await Promise.all(rawItems.map(async (item) => {
+                if (!item.encryptedData) return item;
+
                 try {
-                    if (item.encryptedData) {
-                        const decodedStr = atob(item.encryptedData);
-                        const decodedData = JSON.parse(decodeURIComponent(escape(decodedStr)));
-                        return { ...item, ...decodedData };
+                    if (masterKey) {
+                        const decryptedData = await decrypt(item.encryptedData, masterKey);
+                        return { ...item, ...decryptedData };
                     }
                 } catch (e) {
-                    console.error('Failed to parse item data', e);
+                    // Fallback to legacy Base64 for development data
+                    try {
+                        const decodedStr = atob(item.encryptedData);
+                        const decodedData = JSON.parse(decodeURIComponent(escape(decodedStr)));
+                        return { ...item, ...decodedData, _isLegacy: true };
+                    } catch (err) {
+                        console.error('Failed to decrypt or parse item', item.id, e);
+                    }
                 }
-                return item;
-            });
+                return { ...item, name: 'Decryption Error' };
+            }));
 
             // Sort: domain-matched items first
             if (currentDomain) {
@@ -268,6 +279,7 @@ async function fetchVault(token) {
             await handleLogout();
         }
     } catch (err) {
+        console.error(err);
         vaultList.innerHTML = '<div class="empty-state"><p>Failed to load vault</p></div>';
     } finally {
         showLoading(false);

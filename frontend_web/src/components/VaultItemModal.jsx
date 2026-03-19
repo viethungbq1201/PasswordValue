@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { vaultApi } from '../services/api'
+import cryptoService from '../services/CryptoService'
 import zxcvbn from 'zxcvbn'
 
 const TYPES = ['LOGIN', 'CARD', 'SECURE_NOTE', 'IDENTITY', 'OTP']
@@ -29,16 +30,18 @@ export default function VaultItemModal({ item, onClose, onSaved }) {
         setSaving(true)
         setError('')
         try {
-            const rawJson = JSON.stringify({
-                name: name.trim(), // Apply trim here as name is no longer a top-level field
+            const rawData = {
+                name: name.trim(),
                 website, username, password, notes,
                 cardNumber, cardHolder, cardExpiry, cardCvv, otpSecret,
-            });
+            };
+
+            const encryptedData = await cryptoService.encrypt(rawData);
 
             const payload = {
                 type,
                 favorite,
-                encryptedData: btoa(unescape(encodeURIComponent(rawJson))),
+                encryptedData,
                 website: website || null,
                 matchType: matchType,
             }
@@ -50,7 +53,7 @@ export default function VaultItemModal({ item, onClose, onSaved }) {
             }
             onSaved()
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to save')
+            setError(err.message || 'Failed to save')
         } finally {
             setSaving(false)
         }

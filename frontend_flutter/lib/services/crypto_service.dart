@@ -13,13 +13,12 @@ class CryptoService {
   Uint8List? _masterKey;
   final _random = Random.secure();
 
-  /// Derive a 256-bit master key from the user's master password using Argon2id.
+  /// Derive a 256-bit master key from the user's master password using PBKDF2.
   Future<Uint8List> deriveKey(String masterPassword, String email) async {
-    final algorithm = Argon2id(
-      parallelism: 1,
-      memory: 65536, // 64 MB
-      iterations: 3,
-      hashLength: 32, // 256 bits
+    final algorithm = Pbkdf2(
+      macAlgorithm: Hmac.sha256(),
+      iterations: 100000,
+      bits: 256,
     );
 
     // Use email as salt for deterministic key derivation
@@ -36,55 +35,72 @@ class CryptoService {
   }
 
   /// Encrypt plaintext JSON data using AES-256-GCM.
-  /// Returns Base64-encoded string: nonce(12) + ciphertext + tag(16)
+  /// Returns Base64-encoded string: iv(12) + ciphertext + mac(16)
   Future<String> encrypt(Map<String, dynamic> data) async {
     if (_masterKey == null) throw StateError('Master key not derived');
 
-    final plaintext = utf8.encode(jsonEncode(data));
-    final algorithm = AesGcm.with256bits();
-    final secretKey = SecretKey(_masterKey!);
-    final nonce = algorithm.newNonce();
+    try {
+      final plaintext = utf8.encode(jsonEncode(data));
+      final algorithm = AesGcm.with256bits();
+      final secretKey = SecretKey(_masterKey!);
+      final nonce = algorithm.newNonce(); // 12 bytes IV
 
-    final secretBox = await algorithm.encrypt(
-      plaintext,
-      secretKey: secretKey,
-      nonce: nonce,
-    );
+      final secretBox = await algorithm.encrypt(
+        plaintext,
+        secretKey: secretKey,
+        nonce: nonce,
+      );
 
-    // Combine: nonce + ciphertext + MAC
-    final combined = <int>[
-      ...secretBox.nonce,
-      ...secretBox.cipherText,
-      ...secretBox.mac.bytes,
-    ];
+      // WebCrypto standard: IV + CIPHERTEXT + MAC
+      final combined = <int>[
+        ...secretBox.nonce,
+        ...secretBox.cipherText,
+        ...secretBox.mac.bytes,
+      ];
 
-    return base64Encode(combined);
+      return base64Encode(combined);
+    } catch (e) {
+      print('[CryptoService] Encryption error: $e');
+      rethrow;
+    }
   }
 
   /// Decrypt Base64-encoded encrypted data back to JSON.
   Future<Map<String, dynamic>> decrypt(String encryptedBase64) async {
     if (_masterKey == null) throw StateError('Master key not derived');
 
-    final combined = base64Decode(encryptedBase64);
+    try {
+      final combined = base64Decode(encryptedBase64);
 
-    // Extract: nonce(12) + ciphertext + mac(16)
-    final nonce = combined.sublist(0, 12);
-    final cipherText = combined.sublist(12, combined.length - 16);
-    final mac = Mac(combined.sublist(combined.length - 16));
+      // Extract: iv(12) + ciphertext + mac(16)
+      // WebCrypto combined block = IV (12) + CT (var) + MAC (16)
+      final nonce = combined.sublist(0, 12);
+      final macBytes = combined.sublist(combined.length - 16);
+      final cipherText = combined.sublist(12, combined.length - 16);
 
-    final secretBox = SecretBox(
-      cipherText,
-      nonce: nonce,
-      mac: mac,
-    );
+      final secretBox = SecretBox(
+        cipherText,
+        nonce: nonce,
+        mac: Mac(macBytes),
+      );
 
-    final algorithm = AesGcm.with256bits();
-    final secretKey = SecretKey(_masterKey!);
+      final algorithm = AesGcm.with256bits();
+      final secretKey = SecretKey(_masterKey!);
 
-    final plaintext = await algorithm.decrypt(secretBox, secretKey: secretKey);
-    final jsonString = utf8.decode(plaintext);
+      final plaintext = await algorithm.decrypt(secretBox, secretKey: secretKey);
+      final jsonString = utf8.decode(plaintext);
 
-    return jsonDecode(jsonString) as Map<String, dynamic>;
+      return jsonDecode(jsonString) as Map<String, dynamic>;
+    } catch (e) {
+      // Fallback to legacy Base64 for development migration
+      try {
+        final decodedStr = utf8.decode(base64Decode(encryptedBase64));
+        return jsonDecode(decodedStr) as Map<String, dynamic>;
+      } catch (legacyErr) {
+        print('[CryptoService] Decryption error (incl fallback): $e');
+        rethrow;
+      }
+    }
   }
 
   /// Generate a random password.

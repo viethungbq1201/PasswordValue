@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { authApi } from './api'
+import cryptoService from './CryptoService'
 
 const AuthContext = createContext(null)
 
@@ -17,6 +18,9 @@ export function AuthProvider({ children }) {
     }, [])
 
     const login = async (email, masterPassword) => {
+        // Derive master key before sending anything to backend (or after, but we need it for decryption)
+        await cryptoService.deriveMasterKey(masterPassword, email)
+        
         const res = await authApi.login(email, masterPassword)
         const { token, email: userEmail, userId } = res.data
         localStorage.setItem('sv_token', token)
@@ -27,6 +31,8 @@ export function AuthProvider({ children }) {
     }
 
     const register = async (email, masterPassword) => {
+        await cryptoService.deriveMasterKey(masterPassword, email)
+        
         const res = await authApi.register(email, masterPassword)
         const { token, email: userEmail, userId } = res.data
         localStorage.setItem('sv_token', token)
@@ -40,6 +46,7 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('sv_token')
         localStorage.removeItem('sv_email')
         localStorage.removeItem('sv_userId')
+        cryptoService.clearKey()
         setUser(null)
     }
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../services/AuthContext'
 import { vaultApi, folderApi } from '../services/api'
+import cryptoService from '../services/CryptoService'
 import VaultItemModal from '../components/VaultItemModal'
 import PasswordGenerator from '../components/PasswordGenerator'
 
@@ -42,18 +43,27 @@ export default function DashboardPage() {
                 case 'all': res = await vaultApi.getAll(); break
                 default: res = await vaultApi.getByType(filter); break
             }
-            const parsedItems = res.data.map(item => {
+            
+            const parsedItems = await Promise.all(res.data.map(async (item) => {
+                if (!item.encryptedData) return item;
+                
                 try {
-                    if (item.encryptedData) {
+                    // Try standardized decryption first
+                    const decryptedData = await cryptoService.decrypt(item.encryptedData);
+                    return { ...item, ...decryptedData };
+                } catch (e) {
+                    // Fallback to legacy Base64 for development data
+                    try {
                         const decodedStr = atob(item.encryptedData);
                         const decodedData = JSON.parse(decodeURIComponent(escape(decodedStr)));
-                        return { ...item, ...decodedData };
+                        return { ...item, ...decodedData, _isLegacy: true };
+                    } catch (err) {
+                        console.error('Failed to decrypt or parse item', item.id, e);
+                        return { ...item, name: 'Decryption Error' };
                     }
-                } catch (e) {
-                    console.error('Failed to parse item data', e);
                 }
-                return item;
-            });
+            }));
+            
             setItems(parsedItems);
             const folderRes = await folderApi.getAll();
             setFolders(folderRes.data)
