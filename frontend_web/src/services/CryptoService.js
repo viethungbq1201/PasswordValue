@@ -40,6 +40,13 @@ class CryptoService {
       ['encrypt', 'decrypt']
     );
 
+    // Save to session storage for persistence across page reloads
+    if (typeof sessionStorage !== 'undefined') {
+      const exportedRaw = await window.crypto.subtle.exportKey('raw', this.masterKey);
+      const exportedB64 = btoa(String.fromCharCode(...new Uint8Array(exportedRaw)));
+      sessionStorage.setItem('sv_mk_session', exportedB64);
+    }
+
     return this.masterKey;
   }
 
@@ -92,12 +99,42 @@ class CryptoService {
     return JSON.parse(decoder.decode(decryptedContent));
   }
 
+  async restoreFromSession() {
+    if (typeof sessionStorage === 'undefined') return false;
+    
+    const b64Key = sessionStorage.getItem('sv_mk_session');
+    if (!b64Key) return false;
+
+    try {
+      const rawKey = new Uint8Array(
+        atob(b64Key)
+          .split('')
+          .map(c => c.charCodeAt(0))
+      );
+
+      this.masterKey = await window.crypto.subtle.importKey(
+        'raw',
+        rawKey,
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt']
+      );
+      return true;
+    } catch (e) {
+      console.error('Failed to restore master key from session:', e);
+      return false;
+    }
+  }
+
   setMasterKey(key) {
     this.masterKey = key;
   }
 
   clearKey() {
     this.masterKey = null;
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('sv_mk_session');
+    }
   }
 }
 

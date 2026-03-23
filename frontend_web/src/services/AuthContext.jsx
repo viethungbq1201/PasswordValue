@@ -9,12 +9,28 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        const token = localStorage.getItem('sv_token')
-        const email = localStorage.getItem('sv_email')
-        if (token && email) {
-            setUser({ token, email })
-        }
-        setLoading(false)
+        const initAuth = async () => {
+            const token = localStorage.getItem('sv_token')
+            const email = localStorage.getItem('sv_email')
+            const userId = localStorage.getItem('sv_userId')
+            
+            if (token && email) {
+                const keyRestored = await cryptoService.restoreFromSession();
+                if (keyRestored) {
+                    setUser({ token, email, userId })
+                } else {
+                    // Session key lost (e.g., opened in a new tab) -> require re-login
+                    localStorage.removeItem('sv_token')
+                    localStorage.removeItem('sv_email')
+                    localStorage.removeItem('sv_userId')
+                    cryptoService.clearKey()
+                    setUser(null)
+                }
+            }
+            setLoading(false)
+        };
+        
+        initAuth();
     }, [])
 
     const login = async (email, masterPassword) => {
