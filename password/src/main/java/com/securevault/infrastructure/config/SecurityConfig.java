@@ -25,7 +25,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Value("${securevault.cors.allowed-origins:http://localhost:5173,chrome-extension://*}")
+    @Value("${CORS_ORIGINS:http://localhost:5173,chrome-extension://*}")
     private String allowedOrigins;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
