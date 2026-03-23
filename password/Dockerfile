@@ -10,10 +10,10 @@ COPY src/ src/
 RUN ./mvnw clean package -DskipTests -B
 
 # Runtime stage
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-RUN addgroup -S securevault && adduser -S securevault -G securevault
+RUN groupadd -r securevault && useradd -r -g securevault securevault
 USER securevault
 
 COPY --from=builder /app/target/*.jar app.jar
@@ -22,4 +22,4 @@ EXPOSE 8080
 
 ENV SPRING_PROFILES_ACTIVE=prod
 
-ENTRYPOINT ["java", "-Djava.net.preferIPv4Stack=true", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
