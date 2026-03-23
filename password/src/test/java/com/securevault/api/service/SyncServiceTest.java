@@ -40,6 +40,9 @@ class SyncServiceTest {
     @Mock
     private com.securevault.core.repository.FolderRepository folderRepository;
 
+    @Mock
+    private SyncNotificationService syncNotificationService;
+
     @InjectMocks
     private SyncService syncService;
 

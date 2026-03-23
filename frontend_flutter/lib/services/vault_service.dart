@@ -124,7 +124,7 @@ class VaultService extends ChangeNotifier {
         headers: _authHeaders(token),
         body: jsonEncode({
           'type': item.type.name.toUpperCase(),
-          'encryptedData': base64Decode(encrypted),
+          'encryptedData': encrypted,
           'folderId': item.folderId,
           'favorite': item.favorite,
         }),

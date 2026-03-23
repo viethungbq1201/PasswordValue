@@ -10,6 +10,8 @@ import com.securevault.core.enums.VaultItemType;
 import com.securevault.core.repository.FolderRepository;
 import com.securevault.core.repository.UserRepository;
 import com.securevault.core.repository.VaultItemRepository;
+import com.securevault.infrastructure.exception.AccessDeniedException;
+import com.securevault.infrastructure.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,7 +66,7 @@ public class VaultService {
     @Transactional
     public VaultItemResponse createItem(UUID userId, VaultItemRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Folder folder = null;
         if (request.getFolderId() != null) {
@@ -89,10 +91,10 @@ public class VaultService {
     @Transactional
     public VaultItemResponse updateItem(UUID userId, UUID itemId, VaultItemRequest request) {
         VaultItem item = vaultItemRepository.findById(itemId)
-                .orElseThrow(() -> new IllegalArgumentException("Item not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Item not found"));
 
         if (!item.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Access denied");
+            throw new AccessDeniedException("Access denied");
         }
 
         if (request.getEncryptedData() != null) {
@@ -115,17 +117,21 @@ public class VaultService {
             item.setMatchType(request.getMatchType());
         }
 
+        // Increment revision number on each update
+        item.setRevisionNumber(item.getRevisionNumber() + 1);
+
         item = vaultItemRepository.save(item);
+        syncNotificationService.notifySync(userId);
         return toResponse(item);
     }
 
     @Transactional
     public void softDeleteItem(UUID userId, UUID itemId) {
         VaultItem item = vaultItemRepository.findById(itemId)
-                .orElseThrow(() -> new IllegalArgumentException("Item not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Item not found"));
 
         if (!item.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Access denied");
+            throw new AccessDeniedException("Access denied");
         }
 
         item.setDeletedAt(LocalDateTime.now());
@@ -136,10 +142,10 @@ public class VaultService {
     @Transactional
     public VaultItemResponse restoreItem(UUID userId, UUID itemId) {
         VaultItem item = vaultItemRepository.findById(itemId)
-                .orElseThrow(() -> new IllegalArgumentException("Item not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Item not found"));
 
         if (!item.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Access denied");
+            throw new AccessDeniedException("Access denied");
         }
 
         item.setDeletedAt(null);
@@ -151,10 +157,10 @@ public class VaultService {
     @Transactional
     public void permanentDeleteItem(UUID userId, UUID itemId) {
         VaultItem item = vaultItemRepository.findById(itemId)
-                .orElseThrow(() -> new IllegalArgumentException("Item not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Item not found"));
 
         if (!item.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Access denied");
+            throw new AccessDeniedException("Access denied");
         }
 
         vaultItemRepository.delete(item);

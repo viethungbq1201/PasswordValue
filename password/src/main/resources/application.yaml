@@ -2,11 +2,18 @@ spring:
   application:
     name: securevault
 
+  # Default datasource — overridden by profile-specific configs
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/securevault}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 2
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
 
   jpa:
     hibernate:
@@ -16,6 +23,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+    open-in-view: false
 
   flyway:
     enabled: true
@@ -29,3 +37,11 @@ securevault:
   jwt:
     secret: ${JWT_SECRET:SecureVaultDefaultJwtSecretKeyMustBeAtLeast256Bits!}
     expiration-ms: ${JWT_EXPIRATION:86400000}  # 24 hours
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000,chrome-extension://*}
+
+logging:
+  level:
+    root: INFO
+    com.securevault: INFO
+    org.springframework.security: WARN

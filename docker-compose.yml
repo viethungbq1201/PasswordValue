@@ -25,11 +25,13 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: dev
       DATABASE_URL: jdbc:postgresql://postgres:5432/securevault
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
-      JWT_SECRET: SecureVaultProductionJwtSecretKeyMustBeAtLeast256BitsLong!
+      JWT_SECRET: SecureVaultLocalDevJwtSecretKeyMustBeAtLeast256BitsLong!
       SERVER_PORT: 8080
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,chrome-extension://*"
     ports:
       - "8080:8080"
 

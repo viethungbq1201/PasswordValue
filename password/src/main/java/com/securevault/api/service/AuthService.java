@@ -17,13 +17,16 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final AuditService auditService;
 
     public AuthService(UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtUtil jwtUtil) {
+            JwtUtil jwtUtil,
+            AuditService auditService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -41,6 +44,8 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getId(), user.getEmail());
 
+        auditService.log(user.getId(), "REGISTER", "USER", user.getId(), null, "User registered");
+
         return AuthResponse.builder()
                 .token(token)
                 .userId(user.getId())
@@ -53,10 +58,13 @@ public class AuthService {
                 .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.getMasterPassword(), user.getPasswordHash())) {
+            auditService.log(user.getId(), "LOGIN_FAILED", "USER", user.getId(), null, "Invalid password");
             throw new BadCredentialsException("Invalid email or password");
         }
 
         String token = jwtUtil.generateToken(user.getId(), user.getEmail());
+
+        auditService.log(user.getId(), "LOGIN", "USER", user.getId(), null, "User logged in");
 
         return AuthResponse.builder()
                 .token(token)

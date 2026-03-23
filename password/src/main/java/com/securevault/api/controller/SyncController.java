@@ -3,6 +3,7 @@ package com.securevault.api.controller;
 import com.securevault.api.dto.sync.SyncRequest;
 import com.securevault.api.dto.sync.SyncResponse;
 import com.securevault.api.service.SyncService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -11,7 +12,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
-@RequestMapping({"/api/sync", "/sync"})
+@RequestMapping("/api/sync")
 public class SyncController {
 
     private final SyncService syncService;
@@ -26,7 +27,7 @@ public class SyncController {
     @PostMapping("/upload")
     public ResponseEntity<SyncResponse> upload(
             Authentication auth,
-            @RequestBody SyncRequest request) {
+            @Valid @RequestBody SyncRequest request) {
         UUID userId = (UUID) auth.getPrincipal();
         return ResponseEntity.ok(syncService.upload(userId, request));
     }

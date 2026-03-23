@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping({"/api/folders", "/folders"})
+@RequestMapping("/api/folders")
 public class FolderController {
 
     private final FolderService folderService;

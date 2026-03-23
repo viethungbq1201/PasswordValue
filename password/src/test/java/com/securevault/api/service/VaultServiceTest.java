@@ -36,6 +36,9 @@ class VaultServiceTest {
     @Mock
     private FolderRepository folderRepository;
 
+    @Mock
+    private SyncNotificationService syncNotificationService;
+
     @InjectMocks
     private VaultService vaultService;
 

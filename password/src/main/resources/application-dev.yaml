@@ -1,0 +1,14 @@
+# Development profile — local Docker PostgreSQL
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/securevault
+    username: postgres
+    password: postgres
+
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    com.securevault: DEBUG
+    org.hibernate.SQL: DEBUG

@@ -6,6 +6,8 @@ import com.securevault.core.domain.Folder;
 import com.securevault.core.domain.User;
 import com.securevault.core.repository.FolderRepository;
 import com.securevault.core.repository.UserRepository;
+import com.securevault.infrastructure.exception.AccessDeniedException;
+import com.securevault.infrastructure.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +34,7 @@ public class FolderService {
     @Transactional
     public FolderResponse createFolder(UUID userId, FolderRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Folder folder = Folder.builder()
                 .user(user)
@@ -46,10 +48,10 @@ public class FolderService {
     @Transactional
     public FolderResponse updateFolder(UUID userId, UUID folderId, FolderRequest request) {
         Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> new IllegalArgumentException("Folder not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
         if (!folder.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Access denied");
+            throw new AccessDeniedException("Access denied");
         }
 
         folder.setName(request.getName());
@@ -60,10 +62,10 @@ public class FolderService {
     @Transactional
     public void softDeleteFolder(UUID userId, UUID folderId) {
         Folder folder = folderRepository.findById(folderId)
-                .orElseThrow(() -> new IllegalArgumentException("Folder not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Folder not found"));
 
         if (!folder.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Access denied");
+            throw new AccessDeniedException("Access denied");
         }
 
         folder.setDeletedAt(LocalDateTime.now());

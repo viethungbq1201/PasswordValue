@@ -1,5 +1,10 @@
 class ApiConstants {
-  static const String baseUrl = 'https://passwordvalue-production.up.railway.app/api';
+  // Configurable via --dart-define=API_URL=https://your-backend.example.com/api
+  // Default: local development
+  static const String baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'http://localhost:8080/api',
+  );
 
   // Auth
   static const String register = '$baseUrl/auth/register';
