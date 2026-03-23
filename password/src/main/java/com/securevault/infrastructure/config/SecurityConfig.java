@@ -56,20 +56,33 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Parse comma-separated origins from environment variable
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();
-        config.setAllowedOriginPatterns(origins);
+
+        // 🔥 Quan trọng: phân biệt rõ
+        config.setAllowedOrigins(
+                origins.stream()
+                        .filter(o -> !o.contains("*"))
+                        .toList());
+
+        config.setAllowedOriginPatterns(
+                origins.stream()
+                        .filter(o -> o.contains("*"))
+                        .toList());
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
+
+        // 🔥 Quan trọng
         config.setAllowCredentials(true);
+
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
+
         return source;
     }
 
