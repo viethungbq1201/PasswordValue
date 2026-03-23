@@ -5,6 +5,8 @@
  * Communicates with backend API via fetch().
  */
 
+import { deriveMasterKey, importMasterKey, decrypt } from './crypto.js';
+
 console.log("SecureVault popup loaded");
 
 const API_BASE = 'https://passwordvalue-production.up.railway.app/api';
@@ -126,10 +128,14 @@ async function handleLogin() {
 
         if (res.ok) {
             const data = await res.json();
+            
+            const masterKeyHex = await deriveMasterKey(pass, email);
+            
             await chrome.storage.local.set({
                 sv_token: data.token,
                 sv_email: data.email,
                 sv_userId: data.userId,
+                sv_master_key_hex: masterKeyHex
             });
             showVault();
             await fetchVault(data.token);

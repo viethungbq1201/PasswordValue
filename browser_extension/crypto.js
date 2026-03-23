@@ -16,7 +16,7 @@ export async function deriveMasterKey(password, email) {
         ['deriveKey']
     );
 
-    this.masterKey = await crypto.subtle.deriveKey(
+    const masterKey = await crypto.subtle.deriveKey(
         {
             name: 'PBKDF2',
             salt: saltBytes,
@@ -29,7 +29,7 @@ export async function deriveMasterKey(password, email) {
         ['encrypt', 'decrypt']
     );
 
-    const rawKey = await crypto.subtle.exportKey('raw', this.masterKey);
+    const rawKey = await crypto.subtle.exportKey('raw', masterKey);
     return bufToHex(rawKey);
 }
 
