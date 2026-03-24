@@ -125,6 +125,8 @@ class VaultService extends ChangeNotifier {
         body: jsonEncode({
           'type': item.type.name.toUpperCase(),
           'encryptedData': encrypted,
+          'website': item.website,
+          'matchType': item.matchType.name.toUpperCase(),
           'folderId': item.folderId,
           'favorite': item.favorite,
         }),
@@ -153,6 +155,8 @@ class VaultService extends ChangeNotifier {
         body: jsonEncode({
           'type': item.type.name.toUpperCase(),
           'encryptedData': encrypted,
+          'website': item.website,
+          'matchType': item.matchType.name.toUpperCase(),
           'folderId': item.folderId,
           'favorite': item.favorite,
         }),

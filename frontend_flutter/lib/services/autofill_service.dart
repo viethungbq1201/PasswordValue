@@ -54,11 +54,17 @@ class AutofillService {
           
           for (var item in items) {
             // Items are encrypted — return encrypted data for client-side decryption
+            final dynamic encryptedData = item['encryptedData'];
+            String base64Data = '';
+            if (encryptedData is String) {
+              base64Data = encryptedData;
+            } else if (encryptedData is List) {
+              base64Data = base64Encode(List<int>.from(encryptedData));
+            }
+
             matches.add({
               'id': item['id'] ?? '',
-              'encryptedData': item['encryptedData'] != null 
-                  ? base64Encode(List<int>.from(item['encryptedData'])) 
-                  : '',
+              'encryptedData': base64Data,
             });
           }
           return matches;

@@ -68,7 +68,7 @@ export const syncApi = {
 
 // ── Autofill ──────────────────────────────────────────────
 export const autofillApi = {
-    match: (domain) => api.get(`vault/match?domain=${encodeURIComponent(domain)}`),
+    match: (domain) => api.get(`autofill?domain=${encodeURIComponent(domain)}`),
 }
 
 export default api

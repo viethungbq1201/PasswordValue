@@ -20,7 +20,7 @@ public class VaultMatchingService {
             "com.au", "com.br", "com.cn", "com.mx", "com.sg", "com.tw",
             "org.uk", "org.au", "net.au", "ac.uk", "gov.uk",
             "co.id", "co.il", "co.th", "com.ar", "com.co", "com.hk",
-            "com.my", "com.ph", "com.pk", "com.tr", "com.ua", "com.vn");
+            "com.my", "com.ph", "com.pk", "com.tr", "com.ua", "com.vn", "co.vn");
 
     public VaultMatchingService(VaultItemRepository vaultItemRepository) {
         this.vaultItemRepository = vaultItemRepository;
