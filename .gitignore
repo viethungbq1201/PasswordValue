@@ -7,3 +7,4 @@ build/
 .idea/
 *.log
 frontend_flutter/.DS_Store
+flutter_sdk/
