@@ -14,9 +14,13 @@
     let activeDropdownWrapper = null;
 
     // ── WebCrypto Decryption Utilities ────────────────────────
-    async function deriveKeyFromMaster(masterKeyBase64) {
-        const rawKey = Uint8Array.from(atob(masterKeyBase64), c => c.charCodeAt(0));
+    async function deriveKeyFromMaster(masterKeyHex) {
+        const rawKey = hexToBuf(masterKeyHex);
         return crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
+    }
+
+    function hexToBuf(hex) {
+        return new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
     }
 
     async function decryptVaultData(encryptedBase64, cryptoKey) {
@@ -395,26 +399,42 @@
 
     async function decryptMatchedItems(matches) {
         const results = [];
-        // Try to get master key for WebCrypto decryption
-        let cryptoKey = null;
-        try {
-            const res = await chrome.runtime.sendMessage({ type: 'GET_MASTER_KEY' });
-            if (res && res.sv_master_key) {
-                cryptoKey = await deriveKeyFromMaster(res.sv_master_key);
-                console.log("[SecureVault] Master key successfully derived.");
-            } else {
-                console.warn("[SecureVault] No master key available in local storage.");
-            }
-        } catch (e) { 
-            console.error("[SecureVault] Failed to retrieve master key:", e);
-            return []; // Cannot decrypt without key
-        }
-
         let decryptedCount = 0;
+
         for (const item of matches) {
-            let data = null;
+            // The background script already decrypts items and merges fields
+            // (username, password, name, website) into the response objects.
+            // Check for already-decrypted fields first.
+            if (item.username || item.password) {
+                if (item.type === 'LOGIN' || item.type === 'login') {
+                    results.push({
+                        id: item.id,
+                        username: item.username || '',
+                        password: item.password || '',
+                        name: item.name || '',
+                        website: item.website || ''
+                    });
+                    decryptedCount++;
+                }
+                continue;
+            }
+
+            // Fallback: try client-side decryption if background didn't decrypt
             const encData = item.encryptedData;
             if (!encData) continue;
+
+            let cryptoKey = null;
+            try {
+                const res = await chrome.runtime.sendMessage({ type: 'GET_MASTER_KEY_HEX' });
+                if (res && res.sv_master_key_hex) {
+                    cryptoKey = await deriveKeyFromMaster(res.sv_master_key_hex);
+                    console.log("[SecureVault] Master key successfully derived for fallback decryption.");
+                } else {
+                    console.warn("[SecureVault] No master key available for fallback decryption.");
+                }
+            } catch (e) {
+                console.error("[SecureVault] Failed to retrieve master key:", e);
+            }
 
             // Convert byte array to base64 if needed
             let base64Data;
@@ -426,12 +446,12 @@
                 continue;
             }
 
+            let data = null;
             if (cryptoKey) {
                 try {
                     data = await decryptVaultData(base64Data, cryptoKey);
                 } catch (err) {
                     console.error("[SecureVault] Decryption failed for item", item.id, err);
-                    continue;
                 }
             }
 
@@ -454,7 +474,7 @@
                 decryptedCount++;
             }
         }
-        
+
         console.log(`[SecureVault] Successfully decrypted ${decryptedCount} items client-side.`);
         return results;
     }

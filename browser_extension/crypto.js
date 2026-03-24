@@ -72,12 +72,21 @@ export async function encrypt(data, masterKey) {
     return btoa(String.fromCharCode(...combined));
 }
 
-export async function decrypt(encryptedBase64, masterKey) {
-    const combined = new Uint8Array(
-        atob(encryptedBase64)
-            .split('')
-            .map(c => c.charCodeAt(0))
-    );
+export async function decrypt(encryptedData, masterKey) {
+    let combined;
+    if (typeof encryptedData === 'string') {
+        combined = new Uint8Array(
+            atob(encryptedData)
+                .split('')
+                .map(c => c.charCodeAt(0))
+        );
+    } else if (encryptedData instanceof Uint8Array) {
+        combined = encryptedData;
+    } else if (Array.isArray(encryptedData)) {
+        combined = new Uint8Array(encryptedData);
+    } else {
+        throw new Error('Unsupported encrypted data format');
+    }
 
     const iv = combined.slice(0, 12);
     const ciphertext = combined.slice(12);
