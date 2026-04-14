@@ -1,7 +1,7 @@
 import { decrypt, encrypt, importMasterKey } from './crypto.js';
 
 const loginPages = new Map();
-const API_BASE = 'https://passwordvalue-production.up.railway.app/api';
+const API_BASE = 'https://passwordvalue-evb3.onrender.com/api';
 
 // ── Credential Cache (60-second TTL) ──────────────────────
 const credentialCache = new Map();

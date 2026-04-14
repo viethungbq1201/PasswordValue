@@ -1,10 +1,76 @@
+# --- System Files ---
 .DS_Store
+.DS_Store?
+**/ .DS_Store
 **/.DS_Store
+._*
+Thumbs.db
+
+# --- IDEs ---
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings/
+.factorypath
+bin/
+out/
+
+# --- Environment and Secrets ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+password/.env
+frontend_web/.env
+**/.env
+
+# --- Node / Frontend ---
 node_modules/
 dist/
+.npm
+/public/hot
+/public/storage
+/storage/*.key
+.parcel-cache
+.eslintcache
+
+# --- Java / Maven ---
+target/
+*.class
+*.war
+*.ear
+*.jar
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+
+# --- Flutter / Dart ---
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
 build/
-.vscode/
-.idea/
-*.log
-frontend_flutter/.DS_Store
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/flutter_settings.json
+ios/Flutter/.last_build_id
+android/local.properties
+android/GeneratedPluginRegistrant.java
+android/.gradle/
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 flutter_sdk/
+
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+frontend_flutter/build_log.txt
+frontend_flutter/flutter_0*.log

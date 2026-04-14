@@ -9,7 +9,7 @@ import { deriveMasterKey, importMasterKey, decrypt } from './crypto.js';
 
 console.log("SecureVault popup loaded");
 
-const API_BASE = 'https://passwordvalue-production.up.railway.app/api';
+const API_BASE = 'https://passwordvalue-evb3.onrender.com/api';
 
 // ── DOM Elements ──────────────────────────────────────────
 const loginView = document.getElementById('login-view');

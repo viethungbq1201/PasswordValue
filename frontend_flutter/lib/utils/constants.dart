@@ -3,7 +3,7 @@ class ApiConstants {
   // Default: local development
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://passwordvalue-production.up.railway.app/api',
+    defaultValue: 'https://passwordvalue-evb3.onrender.com/api',
   );
 
   // Auth
